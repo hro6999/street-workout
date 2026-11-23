@@ -1,0 +1,237 @@
+/* =====================================================================
+   style.css — LE DESIGN (mode sombre, pensé pour le téléphone)
+   ===================================================================== */
+
+/* Les couleurs de l'appli : change-les ici pour tout modifier d'un coup */
+:root {
+  --fond: #0f1115;
+  --carte: #1a1d24;
+  --carte-2: #232731;
+  --ligne: #2e3340;
+  --texte: #f1f3f6;
+  --texte-doux: #9aa3b2;
+  --accent: #ff7a1a;       /* orange */
+  --accent-fonce: #c85a0a;
+  --vert: #34c759;
+  --rouge: #ff5a4f;
+  --rayon: 16px;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  background: var(--fond);
+  color: var(--texte);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 17px;
+  line-height: 1.4;
+  -webkit-tap-highlight-color: transparent;
+}
+
+h1, h2, h3 { margin: 0; line-height: 1.2; }
+h2 { font-size: 1.25rem; margin-bottom: 12px; }
+h3 { font-size: 1.1rem; }
+p { margin: 8px 0; }
+.doux { color: var(--texte-doux); font-size: 0.92rem; }
+.cache { display: none !important; }
+
+/* ---------- En-tête ---------- */
+.entete {
+  position: sticky; top: 0; z-index: 10;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: calc(12px + env(safe-area-inset-top)) 16px 12px;
+  background: var(--fond);
+  border-bottom: 1px solid var(--ligne);
+}
+.entete h1 { font-size: 1.15rem; }
+.compteur { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 0.95rem; }
+.point { width: 14px; height: 14px; border-radius: 50%; background: var(--ligne); }
+.point.plein { background: var(--vert); }
+
+/* ---------- Contenu ---------- */
+main {
+  max-width: 640px; margin: 0 auto;
+  padding: 16px 16px calc(96px + env(safe-area-inset-bottom));
+}
+
+.carte {
+  background: var(--carte);
+  border-radius: var(--rayon);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+/* ---------- Boutons ---------- */
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+
+.btn {
+  display: block; width: 100%;
+  min-height: 56px; padding: 12px 16px;
+  border: none; border-radius: 14px;
+  font-size: 1.05rem; font-weight: 700;
+  text-align: center;
+}
+.btn + .btn { margin-top: 10px; }
+.btn.principal { background: var(--accent); color: #1a0c00; }
+.btn.principal:active { background: var(--accent-fonce); }
+.btn.secondaire { background: var(--carte-2); color: var(--texte); border: 1px solid var(--ligne); }
+.btn.danger { background: transparent; color: var(--rouge); border: 1px solid var(--rouge); }
+.btn.petit { min-height: 44px; font-size: 0.95rem; font-weight: 600; }
+
+/* ---------- Formulaires ---------- */
+label.champ { display: block; margin-bottom: 14px; font-weight: 600; }
+label.champ small { display: block; font-weight: 400; color: var(--texte-doux); }
+input[type="number"], input[type="text"], select {
+  display: block; width: 100%;
+  min-height: 52px; margin-top: 6px; padding: 10px 12px;
+  background: var(--carte-2); border: 1px solid var(--ligne); border-radius: 12px;
+  font-size: 1.05rem;
+}
+/* Cacher les petites flèches des cases de nombres (on a nos boutons + / −) */
+input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.case { display: flex; align-items: center; gap: 12px; min-height: 48px; font-weight: 600; }
+.case input { width: 24px; height: 24px; accent-color: var(--accent); }
+
+.ligne-saisie { display: flex; gap: 10px; align-items: stretch; }
+.ligne-saisie input { margin-top: 0; flex: 1; min-width: 0; }
+.ligne-saisie .btn { width: auto; }
+
+/* ---------- Séance ---------- */
+.liste-plan { list-style: none; padding: 0; margin: 0 0 16px; }
+.liste-plan li {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 0; border-bottom: 1px solid var(--ligne);
+}
+.liste-plan li:last-child { border-bottom: none; }
+.liste-plan .emoji { font-size: 1.6rem; }
+.liste-plan .cible { margin-left: auto; font-weight: 700; color: var(--accent); white-space: nowrap; }
+
+.avancement { height: 8px; border-radius: 4px; background: var(--ligne); overflow: hidden; margin: 8px 0 4px; }
+.avancement > div { height: 100%; background: var(--accent); }
+.avancement.vert > div { background: var(--vert); }
+
+.exo.termine { outline: 2px solid var(--vert); }
+.exo-entete { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.exo-entete .emoji { font-size: 2rem; }
+.exo-famille { color: var(--texte-doux); font-size: 0.85rem; }
+.objectif { font-size: 1rem; margin-bottom: 8px; }
+.objectif b { color: var(--accent); font-size: 1.15rem; }
+
+details { margin: 8px 0 12px; background: var(--carte-2); border-radius: 12px; padding: 10px 12px; }
+summary { font-weight: 600; cursor: pointer; min-height: 28px; }
+details p { color: var(--texte-doux); }
+
+.serie {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px; margin-top: 8px;
+  background: var(--carte-2); border-radius: 12px;
+}
+.serie.faite { background: rgba(52, 199, 89, 0.15); }
+.serie-num { flex: 1; font-weight: 600; font-size: 0.95rem; min-width: 0; }
+.serie input {
+  width: 64px; min-height: 48px; margin: 0; padding: 4px;
+  text-align: center; font-size: 1.3rem; font-weight: 700;
+}
+.btn-rond, .btn-valider {
+  width: 48px; height: 48px; flex: none;
+  border-radius: 50%; border: none;
+  font-size: 1.5rem; font-weight: 700;
+  background: var(--ligne); color: var(--texte);
+}
+.btn-valider { background: var(--accent); color: #1a0c00; }
+.serie.faite .btn-valider { background: var(--vert); color: #04210d; }
+button:disabled { opacity: 0.35; }
+
+.bilan li { margin: 6px 0; }
+.bilan ul { padding-left: 0; list-style: none; }
+
+/* ---------- Progrès ---------- */
+.niveau-ligne { padding: 12px 0; border-bottom: 1px solid var(--ligne); }
+.niveau-ligne:last-child { border-bottom: none; }
+.niveau-titre { display: flex; justify-content: space-between; gap: 8px; font-weight: 700; }
+.choix-famille { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+.choix-famille button {
+  min-height: 44px; padding: 6px 10px;
+  border-radius: 22px; border: 1px solid var(--ligne);
+  background: var(--carte-2); white-space: nowrap;
+}
+.choix-famille button.actif { background: var(--accent); color: #1a0c00; border-color: var(--accent); font-weight: 700; }
+canvas.graphique { display: block; width: 100%; height: 220px; }
+
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center; }
+.stats .chiffre { font-size: 1.6rem; font-weight: 800; color: var(--accent); }
+.stats .doux { font-size: 0.8rem; }
+
+.historique { list-style: none; padding: 0; margin: 0; }
+.historique > li { padding: 12px 0; border-bottom: 1px solid var(--ligne); }
+.historique > li:last-child { border-bottom: none; }
+.historique .date { font-weight: 700; margin-bottom: 4px; }
+.historique .exo-ligne { font-size: 0.92rem; color: var(--texte-doux); }
+
+.grand-chiffre { font-size: 2.6rem; font-weight: 800; }
+.btn-suppr {
+  width: 44px; height: 44px; border: none; border-radius: 50%;
+  background: transparent; color: var(--texte-doux); font-size: 1.1rem;
+}
+.ligne-poids { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--ligne); padding: 4px 0; }
+
+/* ---------- Barre d'onglets ---------- */
+.onglets {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 10;
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  background: var(--carte);
+  border-top: 1px solid var(--ligne);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.onglets button {
+  min-height: 64px; border: none; background: none;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  color: var(--texte-doux); font-size: 0.8rem;
+}
+.onglets button span { font-size: 1.4rem; }
+.onglets button.actif { color: var(--accent); font-weight: 700; }
+
+/* ---------- Minuteur plein écran ---------- */
+.minuteur {
+  position: fixed; inset: 0; z-index: 50;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+  padding: 24px;
+  background: rgba(10, 11, 14, 0.97);
+  text-align: center;
+}
+.minuteur-titre { font-size: 1.5rem; font-weight: 700; color: var(--accent); }
+.minuteur-temps { font-size: min(32vw, 160px); font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; }
+.minuteur-sous { color: var(--texte-doux); min-height: 1.4em; }
+.minuteur-boutons { display: flex; gap: 12px; width: 100%; max-width: 400px; }
+.minuteur-boutons .btn { margin: 0; }
+.minuteur > .btn { max-width: 400px; }
+
+/* ---------- Alertes et vérification ---------- */
+.carte.alerte { background: rgba(255, 122, 26, 0.15); border: 1px solid var(--accent); }
+.diagnostic { list-style: none; padding: 0; margin: 12px 0 0; }
+.diagnostic li { padding: 8px 0; border-bottom: 1px solid var(--ligne); font-size: 0.95rem; }
+.diagnostic li:last-child { border-bottom: none; }
+
+/* Clignotement orange à la fin du minuteur (remplace la vibration sur iPhone) */
+body::after {
+  content: ""; position: fixed; inset: 0; z-index: 100;
+  background: var(--accent); opacity: 0; pointer-events: none;
+}
+body.flash::after { animation: clignote 1.5s ease-out; }
+@keyframes clignote {
+  0%, 30%, 60% { opacity: 0.85; }
+  15%, 45%, 100% { opacity: 0; }
+}
+
+/* ---------- Toast ---------- */
+.toast {
+  position: fixed; left: 16px; right: 16px; bottom: calc(80px + env(safe-area-inset-bottom)); z-index: 60;
+  max-width: 520px; margin: 0 auto;
+  padding: 14px 16px; border-radius: 14px;
+  background: var(--texte); color: var(--fond); font-weight: 600; text-align: center;
+}
