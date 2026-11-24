@@ -1,7 +1,7 @@
 // =====================================================================
 //  exercices.js — LA LISTE DES EXERCICES
 // ---------------------------------------------------------------------
-//  4 familles. Chaque famille a des niveaux, du plus facile au plus dur.
+//  9 familles. Chaque famille a des niveaux, du plus facile au plus dur.
 //
 //  Pour chaque niveau :
 //    nom    : le nom affiché
@@ -12,6 +12,18 @@
 //    pas    : de combien l'objectif augmente après une séance réussie
 //    points : les points clés pour bien faire le mouvement
 //    erreurs: les erreurs à éviter
+//    materiel : (facultatif) "barre", "paralleles" ou "elastique" si le
+//               niveau a besoin de ce matériel
+//    eviter : (facultatif) les douleurs pour lesquelles ce niveau est
+//             déconseillé : "poignets", "genoux", "dos", "epaules"
+//
+//  Pour chaque famille :
+//    role   : à quoi elle sert dans le programme (tirer, pousser, jambes…)
+//    depart : le niveau de départ selon le niveau ressenti
+//    conseils : (facultatif) une astuce affichée en cas de douleur
+//
+//  ⚠️ N'insère JAMAIS un niveau au milieu d'une famille : la progression
+//  des gens est enregistrée par numéro de niveau. Ajoute-les à la fin.
 //
 //  Chaque niveau a son animation dans animations.js
 //  (nom : "famille-numéro", par exemple "pompes-2" = pompes classiques).
@@ -23,38 +35,40 @@ const FAMILLES = [
   {
     id: "tractions",
     nom: "Tractions",
+    role: "tirer",
+    depart: { jamais: 0, debutant: 1, intermediaire: 2, confirme: 4 },
     series: 3,
     repos: 90, // secondes de repos entre les séries
     niveaux: [
-      { nom: "Suspension active", unite: "sec", debut: 15, max: 40, pas: 5,
+      { nom: "Suspension active", materiel: "barre", unite: "sec", debut: 15, max: 40, pas: 5,
         desc: "Suspends-toi à la barre, bras tendus. Tire les épaules vers le bas (loin des oreilles) et serre les omoplates. Garde les jambes serrées, sans te balancer.",
         points: ["Bras tendus, épaules tirées vers le bas", "Omoplates serrées, poitrine sortie", "Jambes serrées, corps immobile"],
         erreurs: ["Pendre « mou », épaules collées aux oreilles", "Se balancer"] },
-      { nom: "Tractions australiennes", unite: "reps", debut: 6, max: 12, pas: 1,
+      { nom: "Tractions australiennes", materiel: "barre", unite: "reps", debut: 6, max: 12, pas: 1,
         desc: "Barre basse (hauteur de hanches), pieds au sol, corps bien droit comme une planche. Tire la poitrine jusqu'à la barre, puis redescends lentement. Plus tes pieds sont loin devant, plus c'est dur.",
         points: ["Corps droit comme une planche", "Tire la poitrine jusqu'à la barre", "Descente lente, bras tendus en bas"],
         erreurs: ["Fesses qui tombent", "Tirer avec le cou au lieu du dos"] },
-      { nom: "Tractions négatives", unite: "reps", debut: 3, max: 8, pas: 1,
+      { nom: "Tractions négatives", materiel: "barre", unite: "reps", debut: 3, max: 8, pas: 1,
         desc: "Monte menton au-dessus de la barre en sautant (ou avec une chaise). Puis descends le plus LENTEMENT possible (3 à 5 secondes) jusqu'aux bras tendus.",
         points: ["Pars menton au-dessus de la barre", "Descends en 3 à 5 secondes", "Finis bras tendus"],
         erreurs: ["Se laisser tomber d'un coup", "Monter en tirant au lieu de sauter (garde ta force pour la descente)"] },
-      { nom: "Tractions assistées (élastique)", unite: "reps", debut: 5, max: 10, pas: 1,
+      { nom: "Tractions assistées (élastique)", materiel: "barre", unite: "reps", debut: 5, max: 10, pas: 1,
         desc: "Accroche un élastique à la barre et mets un pied ou un genou dedans. Tire jusqu'à passer le menton au-dessus de la barre, redescends bras tendus. Pas d'élastique ? Garde un pied posé sur une chaise et pousse le moins possible.",
         points: ["Pars bras tendus", "Menton au-dessus de la barre", "Descente contrôlée"],
         erreurs: ["Rebondir en bas grâce à l'élastique", "Demi-mouvements"] },
-      { nom: "Tractions complètes", unite: "reps", debut: 3, max: 10, pas: 1,
+      { nom: "Tractions complètes", materiel: "barre", unite: "reps", debut: 3, max: 10, pas: 1,
         desc: "Prise un peu plus large que les épaules, paumes vers l'avant. Pars bras tendus, tire jusqu'au menton au-dessus de la barre, redescends contrôlé. Pas d'élan avec les jambes.",
         points: ["Pars bras tendus, épaules engagées", "Tire les coudes vers les côtes", "Menton au-dessus de la barre"],
         erreurs: ["Élan avec les jambes", "Remonter avant d'avoir tendu les bras"] },
-      { nom: "Tractions prise serrée", unite: "reps", debut: 5, max: 10, pas: 1,
+      { nom: "Tractions prise serrée", materiel: "barre", unite: "reps", debut: 5, max: 10, pas: 1,
         desc: "Mains rapprochées (largeur de poing à épaules). Même mouvement que la traction classique, poitrine vers la barre, coudes près du corps.",
         points: ["Mains rapprochées", "Coudes près du corps", "Poitrine vers la barre"],
         erreurs: ["Coudes qui s'écartent", "Mouvement incomplet en bas"] },
-      { nom: "Tractions archer", unite: "reps", debut: 2, max: 6, pas: 1,
+      { nom: "Tractions archer", materiel: "barre", eviter: ["epaules"], unite: "reps", debut: 2, max: 6, pas: 1,
         desc: "Prise très large. Tire vers une main en gardant l'autre bras presque tendu sur la barre. Alterne les côtés : 1 répétition = 1 côté gauche + 1 côté droit.",
         points: ["Prise très large", "Monte vers une main", "L'autre bras reste presque tendu"],
         erreurs: ["Plier les deux bras pareil", "Oublier d'alterner les côtés"] },
-      { nom: "Tractions lestées", unite: "reps", debut: 5, max: 10, pas: 1,
+      { nom: "Tractions lestées", materiel: "barre", eviter: ["epaules"], unite: "reps", debut: 5, max: 10, pas: 1,
         desc: "Tractions complètes avec du poids (sac à dos avec des bouteilles/livres, ou ceinture de lest). Commence avec 2 à 5 kg. Quand tu atteins l'objectif max, ajoute 2,5 kg et recommence.",
         points: ["Commence léger (2 à 5 kg)", "Même technique que sans lest", "Poids collé au corps"],
         erreurs: ["Charger trop vite", "Sac qui se balance"] },
@@ -63,6 +77,9 @@ const FAMILLES = [
   {
     id: "pompes",
     nom: "Pompes",
+    role: "pousser",
+    depart: { jamais: 0, debutant: 1, intermediaire: 2, confirme: 3 },
+    conseils: { poignets: "Poignets sensibles : fais tes pompes sur les poings fermés (sur un tapis) ou avec des poignées, pour garder les poignets bien droits." },
     series: 3,
     repos: 90,
     niveaux: [
@@ -78,19 +95,19 @@ const FAMILLES = [
         desc: "Mains sous les épaules, corps gainé (fesses et abdos serrés). Descends jusqu'à frôler le sol avec la poitrine, coudes à 45°, puis remonte bras tendus.",
         points: ["Mains sous les épaules", "Fesses et abdos serrés", "Coudes à 45° du corps"],
         erreurs: ["Dos creusé (ventre qui tombe)", "Mouvement trop court"] },
-      { nom: "Pompes diamant", unite: "reps", debut: 5, max: 12, pas: 1,
+      { nom: "Pompes diamant", eviter: ["poignets"], unite: "reps", debut: 5, max: 12, pas: 1,
         desc: "Mains rapprochées sous la poitrine, pouces et index qui forment un losange. Coudes près du corps. Travaille beaucoup les triceps.",
         points: ["Mains en losange sous la poitrine", "Coudes près du corps", "Descente contrôlée"],
         erreurs: ["Coudes qui s'ouvrent", "Poignets douloureux : élargis un peu les mains"] },
-      { nom: "Pompes déclinées", unite: "reps", debut: 6, max: 15, pas: 1,
+      { nom: "Pompes déclinées", eviter: ["epaules"], unite: "reps", debut: 6, max: 15, pas: 1,
         desc: "Pieds surélevés sur un banc ou une chaise, mains au sol. Garde le corps bien droit. Plus les pieds sont hauts, plus c'est dur.",
         points: ["Pieds sur un support", "Corps bien droit", "Tête dans l'alignement"],
         erreurs: ["Bassin qui casse", "Support qui glisse"] },
-      { nom: "Pompes archer", unite: "reps", debut: 3, max: 8, pas: 1,
+      { nom: "Pompes archer", eviter: ["poignets", "epaules"], unite: "reps", debut: 3, max: 8, pas: 1,
         desc: "Mains très écartées. Descends vers une main en gardant l'autre bras tendu sur le côté. Alterne : 1 répétition = 1 côté gauche + 1 côté droit.",
         points: ["Mains très écartées", "Descends vers une main", "L'autre bras reste tendu"],
         erreurs: ["Plier les deux bras", "Oublier d'alterner les côtés"] },
-      { nom: "Pompes pseudo-planche", unite: "reps", debut: 5, max: 12, pas: 1,
+      { nom: "Pompes pseudo-planche", eviter: ["poignets", "epaules"], unite: "reps", debut: 5, max: 12, pas: 1,
         desc: "Mains au niveau des hanches, doigts tournés vers l'extérieur ou les pieds. Penche le corps vers l'avant, épaules au-delà des mains. Très dur pour les épaules : vas-y progressivement.",
         points: ["Mains au niveau des hanches", "Épaules en avant des mains", "Bras et corps gainés"],
         erreurs: ["Aller trop vite : les poignets et les épaules doivent s'habituer", "Fesses en l'air"] },
@@ -99,6 +116,9 @@ const FAMILLES = [
   {
     id: "abdos",
     nom: "Abdos",
+    role: "abdos",
+    depart: { jamais: 0, debutant: 0, intermediaire: 1, confirme: 3 },
+    conseils: { dos: "Dos sensible : garde toujours le bas du dos collé au sol, et va lentement." },
     series: 3,
     repos: 60,
     niveaux: [
@@ -110,19 +130,19 @@ const FAMILLES = [
         desc: "Sur le dos, mains sous les fesses. Ramène les genoux vers la poitrine en décollant légèrement le bassin, puis redescends sans toucher le sol avec les pieds.",
         points: ["Mains sous les fesses", "Genoux vers la poitrine", "Pieds ne touchent pas le sol en bas"],
         erreurs: ["Bas du dos qui se creuse", "Aller trop vite"] },
-      { nom: "Relevés de jambes au sol", unite: "reps", debut: 6, max: 15, pas: 1,
+      { nom: "Relevés de jambes au sol", eviter: ["dos"], unite: "reps", debut: 6, max: 15, pas: 1,
         desc: "Sur le dos, jambes tendues, bas du dos COLLÉ au sol. Monte les jambes à la verticale puis redescends lentement jusqu'à frôler le sol.",
         points: ["Bas du dos COLLÉ au sol", "Jambes tendues", "Descente lente"],
         erreurs: ["Dos qui se décolle en bas", "Rebondir avec les pieds"] },
-      { nom: "Relevés de genoux suspendu", unite: "reps", debut: 6, max: 12, pas: 1,
+      { nom: "Relevés de genoux suspendu", materiel: "barre", eviter: ["epaules"], unite: "reps", debut: 6, max: 12, pas: 1,
         desc: "Suspendu à la barre, épaules engagées. Monte les genoux jusqu'à la poitrine en enroulant le bassin, sans te balancer. Redescends contrôlé.",
         points: ["Épaules engagées", "Genoux à la poitrine", "Enroule le bassin"],
         erreurs: ["Se balancer", "Juste lever les cuisses sans enrouler"] },
-      { nom: "Relevés de jambes suspendu", unite: "reps", debut: 5, max: 12, pas: 1,
+      { nom: "Relevés de jambes suspendu", materiel: "barre", eviter: ["epaules"], unite: "reps", debut: 5, max: 12, pas: 1,
         desc: "Suspendu à la barre, jambes tendues. Monte les jambes jusqu'à l'horizontale (ou plus haut), sans élan.",
         points: ["Jambes tendues", "Monte au moins à l'horizontale", "Sans élan"],
         erreurs: ["Se balancer", "Plier les genoux pour tricher"] },
-      { nom: "Toes to bar", unite: "reps", debut: 3, max: 10, pas: 1,
+      { nom: "Toes to bar", materiel: "barre", eviter: ["epaules", "dos"], unite: "reps", debut: 3, max: 10, pas: 1,
         desc: "Suspendu à la barre, monte les pieds jusqu'à toucher la barre, jambes le plus tendues possible. Redescends lentement pour ne pas te balancer.",
         points: ["Pieds jusqu'à la barre", "Jambes le plus tendues possible", "Redescends lentement"],
         erreurs: ["Gros balancement", "Bras qui plient beaucoup"] },
@@ -131,6 +151,9 @@ const FAMILLES = [
   {
     id: "gainage",
     nom: "Gainage",
+    role: "gainage",
+    depart: { jamais: 0, debutant: 0, intermediaire: 1, confirme: 3 },
+    conseils: { dos: "Dos sensible : si ça tire dans le bas du dos, pose les genoux au sol." },
     series: 3,
     repos: 60,
     niveaux: [
@@ -150,25 +173,172 @@ const FAMILLES = [
         desc: "Sur le dos, bas du dos plaqué au sol. Décolle les épaules et les jambes tendues, bras tendus derrière la tête : ton corps forme une banane. Trop dur ? Plie les genoux.",
         points: ["Bas du dos plaqué au sol", "Épaules et jambes décollées", "Le corps forme une banane"],
         erreurs: ["Dos qui se décolle", "Bloquer sa respiration"] },
-      { nom: "Tuck L-sit", unite: "sec", debut: 5, max: 20, pas: 2,
+      { nom: "Tuck L-sit", eviter: ["poignets", "epaules"], unite: "sec", debut: 5, max: 20, pas: 2,
         desc: "Mains au sol (ou sur 2 chaises / parallettes), bras tendus, pousse fort pour décoller les fesses. Garde les genoux repliés contre la poitrine.",
         points: ["Bras tendus et verrouillés", "Pousse fort dans les mains", "Genoux contre la poitrine"],
         erreurs: ["Épaules qui remontent aux oreilles", "Bras pliés"] },
-      { nom: "L-sit", unite: "sec", debut: 5, max: 20, pas: 2,
+      { nom: "L-sit", eviter: ["poignets", "epaules"], unite: "sec", debut: 5, max: 20, pas: 2,
         desc: "Comme le tuck L-sit, mais jambes tendues devant toi à l'horizontale. Pointe les pieds, épaules basses, bras verrouillés.",
         points: ["Jambes tendues à l'horizontale", "Pointes de pieds tendues", "Épaules basses"],
         erreurs: ["Jambes qui tombent", "Dos rond et épaules hautes"] },
     ],
   },
+  // ===== Familles ajoutées pour adapter l'appli à tout le monde =====
+  {
+    id: "tirage",
+    nom: "Dos (sans barre)",
+    role: "tirer",
+    depart: { jamais: 0, debutant: 1, intermediaire: 3, confirme: 4 },
+    conseils: { dos: "Dos sensible : monte seulement un peu, sans forcer, et arrête si ça fait mal." },
+    series: 3,
+    repos: 75,
+    niveaux: [
+      { nom: "Superman", unite: "reps", debut: 8, max: 15, pas: 1,
+        desc: "Allongé sur le ventre, bras tendus devant toi. Décolle en même temps les bras, la poitrine et les jambes de quelques centimètres, tiens 2 secondes, puis repose.",
+        points: ["Regard vers le sol (pas vers le haut)", "Tiens 2 secondes en haut", "Serre les fesses"],
+        erreurs: ["Lever la tête trop haut", "Faire le mouvement trop vite"] },
+      { nom: "Superman nageur", unite: "reps", debut: 6, max: 12, pas: 1,
+        desc: "Comme le superman, bras et jambes décollés. Ramène les bras le long du corps en pliant les coudes (comme une brasse), puis tends-les à nouveau devant. 1 aller-retour = 1 répétition.",
+        points: ["Bras et jambes décollés tout le long", "Serre les omoplates en ramenant les bras", "Mouvement lent"],
+        erreurs: ["Reposer les bras au sol entre les répétitions", "Creuser fort le bas du dos"] },
+      { nom: "Rowing avec élastique", unite: "reps", materiel: "elastique", debut: 10, max: 20, pas: 2,
+        desc: "Assis, jambes tendues, l'élastique passé sous les pieds. Tire les mains vers le ventre en serrant les omoplates, coudes près du corps, puis reviens lentement.",
+        points: ["Dos droit", "Serre les omoplates à la fin", "Retour lent"],
+        erreurs: ["Se pencher en arrière pour tricher", "Hausser les épaules"] },
+      { nom: "Tractions australiennes sous une table (genoux pliés)", unite: "reps", debut: 5, max: 12, pas: 1,
+        desc: "Allonge-toi sous une table SOLIDE (vérifie qu'elle ne bascule pas), attrape le bord, pieds au sol et genoux pliés. Tire la poitrine vers la table, puis redescends lentement.",
+        points: ["Table solide et stable", "Corps gainé des genoux aux épaules", "Tire la poitrine vers la table"],
+        erreurs: ["Utiliser une table légère qui peut basculer", "Fesses qui tombent"] },
+      { nom: "Tractions australiennes sous une table (jambes tendues)", unite: "reps", debut: 5, max: 15, pas: 1,
+        desc: "Comme avant, mais jambes tendues et appui sur les talons : ton corps forme une planche bien droite. Tire la poitrine jusqu'à la table.",
+        points: ["Corps droit comme une planche", "Poitrine jusqu'à la table", "Descente lente"],
+        erreurs: ["Hanches qui tombent", "Tirer avec le cou"] },
+    ],
+  },
+  {
+    id: "jambes",
+    nom: "Jambes",
+    role: "jambes",
+    depart: { jamais: 0, debutant: 1, intermediaire: 2, confirme: 3 },
+    series: 3,
+    repos: 75,
+    niveaux: [
+      { nom: "Assis-debout sur une chaise", unite: "reps", eviter: ["genoux"], debut: 8, max: 15, pas: 1,
+        desc: "Assis au bord d'une chaise, pieds à plat. Lève-toi sans t'aider des mains, puis rassieds-toi doucement en contrôlant la descente.",
+        points: ["Pieds à plat, largeur des épaules", "Bras tendus devant pour l'équilibre", "Rassieds-toi lentement"],
+        erreurs: ["Se laisser tomber sur la chaise", "Genoux qui rentrent vers l'intérieur"] },
+      { nom: "Squats", unite: "reps", eviter: ["genoux"], debut: 10, max: 20, pas: 2,
+        desc: "Pieds largeur des épaules. Descends comme pour t'asseoir sur une chaise, talons au sol, dos droit, puis remonte en poussant dans les talons.",
+        points: ["Talons au sol", "Dos droit, poitrine sortie", "Genoux dans l'axe des pieds"],
+        erreurs: ["Talons qui décollent", "Genoux qui rentrent vers l'intérieur"] },
+      { nom: "Fentes alternées", unite: "reps", eviter: ["genoux"], debut: 6, max: 12, pas: 1,
+        desc: "Fais un grand pas en avant et descends jusqu'à ce que le genou arrière frôle le sol. Remonte et change de jambe. 1 répétition = gauche + droite.",
+        points: ["Grand pas en avant", "Buste droit", "Genou arrière qui frôle le sol"],
+        erreurs: ["Genou avant qui dépasse beaucoup les orteils", "Perdre l'équilibre : fais des pas moins grands"] },
+      { nom: "Squats bulgares", unite: "reps", eviter: ["genoux"], debut: 6, max: 12, pas: 1,
+        desc: "Dos à une chaise, pose le dessus du pied arrière dessus. Descends sur la jambe avant puis remonte. Fais les répétitions d'un côté, puis de l'autre.",
+        points: ["Pied arrière posé sur la chaise", "Buste droit", "Pousse dans le talon avant"],
+        erreurs: ["Pied avant trop près de la chaise", "Oublier l'autre jambe"] },
+      { nom: "Pistol squat assisté", unite: "reps", eviter: ["genoux"], debut: 3, max: 8, pas: 1,
+        desc: "Tiens-toi à un poteau ou à un cadre de porte. Sur une jambe, l'autre tendue devant, descends le plus bas possible puis remonte. Fais les 2 jambes.",
+        points: ["Tiens-toi juste pour l'équilibre", "Talon au sol", "Jambe libre tendue devant"],
+        erreurs: ["Tirer fort avec les bras", "Genou qui rentre vers l'intérieur"] },
+      { nom: "Pistol squat", unite: "reps", eviter: ["genoux"], debut: 3, max: 8, pas: 1,
+        desc: "Squat complet sur une seule jambe, l'autre tendue devant, bras devant pour l'équilibre. Fais les 2 jambes.",
+        points: ["Bras devant pour l'équilibre", "Descente contrôlée", "Talon au sol"],
+        erreurs: ["Tomber en bas du mouvement", "Dos très arrondi"] },
+    ],
+  },
+  {
+    id: "fessiers",
+    nom: "Fessiers",
+    role: "fessiers",
+    depart: { jamais: 0, debutant: 0, intermediaire: 1, confirme: 2 },
+    series: 3,
+    repos: 60,
+    niveaux: [
+      { nom: "Pont fessier", unite: "reps", debut: 10, max: 20, pas: 2,
+        desc: "Sur le dos, genoux pliés, pieds à plat. Pousse dans les talons pour monter les fesses jusqu'à ce que le corps soit droit des genoux aux épaules. Serre les fesses 1 seconde en haut.",
+        points: ["Pousse dans les talons", "Serre les fesses en haut", "Corps droit des genoux aux épaules"],
+        erreurs: ["Creuser le bas du dos en haut", "Monter trop vite"] },
+      { nom: "Pont fessier pieds surélevés", unite: "reps", debut: 10, max: 20, pas: 2,
+        desc: "Comme le pont fessier, mais les pieds posés sur une chaise ou un canapé. Monte les fesses le plus haut possible, serre, redescends lentement.",
+        points: ["Pieds stables sur le support", "Serre les fesses en haut", "Redescends lentement"],
+        erreurs: ["Support qui glisse", "Pousser avec le dos au lieu des fesses"] },
+      { nom: "Pont fessier sur une jambe", unite: "reps", debut: 6, max: 15, pas: 1,
+        desc: "Pont fessier avec un seul pied au sol, l'autre jambe tendue en l'air. Fais toutes les répétitions d'un côté, puis de l'autre.",
+        points: ["Bassin bien horizontal", "Serre la fesse qui travaille", "Les 2 côtés"],
+        erreurs: ["Bassin qui penche d'un côté", "Oublier l'autre jambe"] },
+    ],
+  },
+  {
+    id: "dips",
+    nom: "Dips (triceps)",
+    role: "triceps",
+    depart: { jamais: 0, debutant: 0, intermediaire: 1, confirme: 3 },
+    series: 3,
+    repos: 90,
+    niveaux: [
+      { nom: "Dips sur une chaise (genoux pliés)", unite: "reps", eviter: ["poignets", "epaules"], debut: 6, max: 15, pas: 1,
+        desc: "Dos à une chaise STABLE (contre un mur), mains sur le bord, doigts vers l'avant, genoux pliés. Plie les coudes pour descendre les fesses, puis pousse pour remonter.",
+        points: ["Chaise calée contre un mur", "Coudes vers l'arrière", "Fesses près de la chaise"],
+        erreurs: ["Descendre trop bas (douleur à l'épaule)", "Coudes qui s'écartent"] },
+      { nom: "Dips sur une chaise (jambes tendues)", unite: "reps", eviter: ["poignets", "epaules"], debut: 6, max: 15, pas: 1,
+        desc: "Comme avant, mais jambes tendues, appui sur les talons. Plus les pieds sont loin, plus c'est dur.",
+        points: ["Jambes tendues", "Coudes vers l'arrière", "Épaules basses"],
+        erreurs: ["Épaules qui montent aux oreilles", "Descendre trop bas"] },
+      { nom: "Maintien en appui aux barres parallèles", unite: "sec", materiel: "paralleles", eviter: ["poignets", "epaules"], debut: 10, max: 30, pas: 5,
+        desc: "Entre les barres parallèles, bras tendus, tu te tiens en appui. Pousse les épaules vers le bas (loin des oreilles), corps immobile.",
+        points: ["Bras tendus et verrouillés", "Épaules basses", "Corps immobile"],
+        erreurs: ["Épaules qui remontent", "Se balancer"] },
+      { nom: "Dips négatifs", unite: "reps", materiel: "paralleles", eviter: ["poignets", "epaules"], debut: 3, max: 8, pas: 1,
+        desc: "Pars en appui bras tendus aux barres parallèles, puis descends le plus LENTEMENT possible (3 à 5 secondes). Remonte en sautant ou avec les pieds.",
+        points: ["Descends en 3 à 5 secondes", "Buste un peu penché en avant", "Coudes vers l'arrière"],
+        erreurs: ["Se laisser tomber", "Descendre trop bas au début"] },
+      { nom: "Dips aux barres parallèles", unite: "reps", materiel: "paralleles", eviter: ["poignets", "epaules"], debut: 4, max: 12, pas: 1,
+        desc: "En appui aux barres parallèles, descends jusqu'à ce que les coudes soient pliés à 90°, puis pousse pour remonter bras tendus.",
+        points: ["Coudes à 90° en bas", "Buste un peu penché en avant", "Bras tendus en haut"],
+        erreurs: ["Descendre trop bas", "Épaules qui remontent aux oreilles"] },
+    ],
+  },
+  {
+    id: "cardio",
+    nom: "Cardio",
+    role: "cardio",
+    depart: { jamais: 0, debutant: 0, intermediaire: 1, confirme: 2 },
+    series: 3,
+    repos: 45,
+    niveaux: [
+      { nom: "Montées de genoux", unite: "sec", debut: 20, max: 60, pas: 5,
+        desc: "Sur place, monte les genoux à hauteur des hanches en balançant les bras. Débutant ou genoux sensibles : fais-le en marchant, sans sauter.",
+        points: ["Genoux à hauteur des hanches", "Les bras accompagnent", "Respire régulièrement"],
+        erreurs: ["Se pencher en arrière", "Bloquer sa respiration"] },
+      { nom: "Jumping jacks", unite: "sec", eviter: ["genoux"], debut: 20, max: 60, pas: 5,
+        desc: "Saute en écartant les jambes et en levant les bras au-dessus de la tête, puis reviens jambes serrées, bras le long du corps.",
+        points: ["Atterris en douceur sur l'avant du pied", "Bras bien tendus", "Rythme régulier"],
+        erreurs: ["Atterrir lourdement sur les talons", "Aller trop vite et s'épuiser"] },
+      { nom: "Mountain climbers", unite: "sec", eviter: ["poignets"], debut: 20, max: 45, pas: 5,
+        desc: "En position de pompe, bras tendus. Ramène un genou vers la poitrine, puis l'autre, en alternant vite, comme si tu courais.",
+        points: ["Mains sous les épaules", "Fesses basses, dos plat", "Alterne vite les jambes"],
+        erreurs: ["Fesses en l'air", "Mains trop en avant"] },
+    ],
+  },
 ];
+
+// Retrouver une famille à partir de son id (ex. famille("pompes"))
+function famille(id) { return FAMILLES.find(function (f) { return f.id === id; }); }
 
 // =====================================================================
 //  L'ÉCHAUFFEMENT GUIDÉ (environ 5 minutes)
 //  duree : en secondes · anim : le nom de l'animation (animations.js)
+//  materiel / eviter / sinon : si la personne n'a pas le matériel ou a
+//  une douleur concernée, on fait l'exercice "sinon" à la place.
 // =====================================================================
 const ECHAUFFEMENT = [
   { nom: "Jumping jacks", duree: 45, anim: "echauffement-jumping",
-    conseil: "Saute en écartant les bras et les jambes, à ton rythme." },
+    conseil: "Saute en écartant les bras et les jambes, à ton rythme.",
+    eviter: ["genoux"],
+    sinon: { nom: "Marche sur place", duree: 45, anim: "cardio-0", conseil: "Marche sur place en montant un peu les genoux, sans sauter." } },
   { nom: "Cercles de bras", duree: 45, anim: "echauffement-epaules",
     conseil: "Grands cercles, bras tendus. Change de sens à la moitié." },
   { nom: "Rotations des poignets", duree: 30, anim: "echauffement-poignets",
@@ -178,9 +348,13 @@ const ECHAUFFEMENT = [
   { nom: "Montées de genoux", duree: 40, anim: "echauffement-genoux",
     conseil: "Sur place, genoux à hauteur des hanches." },
   { nom: "Pompes inclinées douces", duree: 30, anim: "pompes-0",
-    conseil: "Lentement et sans forcer : juste pour réveiller les bras." },
+    conseil: "Lentement et sans forcer : juste pour réveiller les bras.",
+    eviter: ["poignets"],
+    sinon: { nom: "Cercles d'épaules", duree: 30, anim: "echauffement-epaules", conseil: "Petits cercles lents avec les épaules, dans les deux sens." } },
   { nom: "Suspension à la barre", duree: 20, anim: "tractions-0",
-    conseil: "Bras tendus, épaules basses. Pas de barre ? Serre les omoplates 10 fois." },
+    conseil: "Bras tendus, épaules basses. Pas de barre ? Serre les omoplates 10 fois.",
+    materiel: "barre",
+    sinon: { nom: "Superman doux", duree: 20, anim: "tirage-0", conseil: "Allongé sur le ventre, décolle doucement bras et jambes, puis repose." } },
   { nom: "Planche", duree: 30, anim: "gainage-0",
     conseil: "Corps bien droit, fesses et abdos serrés." },
 ];

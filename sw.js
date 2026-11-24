@@ -10,7 +10,7 @@
 //  et change le numéro de version de CACHE (v1 → v2).
 // =====================================================================
 
-const CACHE = "street-workout-v3";
+const CACHE = "street-workout-v4";
 
 const FICHIERS = [
   "./",
@@ -19,6 +19,8 @@ const FICHIERS = [
   "./exercices.js",
   "./animations.js",
   "./progression.js",
+  "./programme.js",
+  "./questionnaire.js",
   "./app.js",
   "./manifest.json",
   "./icones/icone-180.png",

@@ -25,7 +25,7 @@ html, body {
   background: var(--fond);
   color: var(--texte);
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  font-size: 17px;
+  font-size: 18px;
   line-height: 1.4;
   -webkit-tap-highlight-color: transparent;
 }
@@ -116,12 +116,12 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1p
 .avancement.vert > div { background: var(--vert); }
 
 .exo.termine { outline: 2px solid var(--vert); }
-.exo-famille { color: var(--texte-doux); font-size: 0.85rem; }
-.objectif { font-size: 1rem; margin-bottom: 8px; }
-.objectif b { color: var(--accent); font-size: 1.15rem; }
+.exo-famille { color: var(--texte-doux); font-size: 0.9rem; }
+.objectif { font-size: 1.1rem; margin: 6px 0 10px; }
+.objectif b { color: var(--accent); font-size: 1.5rem; }
 
 details { margin: 8px 0 12px; background: var(--carte-2); border-radius: 12px; padding: 10px 12px; }
-summary { font-weight: 600; cursor: pointer; min-height: 28px; }
+summary { font-weight: 600; cursor: pointer; min-height: 44px; display: flex; align-items: center; }
 details p { color: var(--texte-doux); }
 
 .serie {
@@ -222,7 +222,7 @@ canvas.graphique { display: block; width: 100%; height: 220px; }
 
 .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center; }
 .stats .chiffre { font-size: 1.6rem; font-weight: 800; color: var(--accent); }
-.stats .doux { font-size: 0.8rem; }
+.stats .doux { font-size: 0.85rem; }
 
 .historique { list-style: none; padding: 0; margin: 0; }
 .historique > li { padding: 12px 0; border-bottom: 1px solid var(--ligne); }
@@ -248,7 +248,7 @@ canvas.graphique { display: block; width: 100%; height: 220px; }
 .onglets button {
   min-height: 64px; border: none; background: none;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-  color: var(--texte-doux); font-size: 0.8rem;
+  color: var(--texte-doux); font-size: 0.85rem;
 }
 .onglets .icone { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .onglets button.actif { color: var(--accent); font-weight: 700; }
@@ -300,4 +300,108 @@ body.flash::after { animation: clignote 1.5s ease-out; }
   max-width: 520px; margin: 0 auto;
   padding: 14px 16px; border-radius: 14px;
   background: var(--texte); color: var(--fond); font-weight: 600; text-align: center;
+}
+
+/* =====================================================================
+   AJOUTS : questionnaire, fenêtre de confirmation, aide, accessibilité
+   ===================================================================== */
+
+/* Texte lu seulement par les lecteurs d'écran (personnes malvoyantes) */
+.lecteur { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* Contour bien visible quand on navigue au clavier */
+button:focus-visible, .q-choix:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+/* Très gros bouton (« Commencer ma séance du jour ») */
+.btn.geant { min-height: 76px; font-size: 1.25rem; border-radius: 18px; margin: 14px 0 10px; }
+.btn.espace { margin-bottom: 16px; }
+.btn.retour { width: auto; display: inline-block; margin-bottom: 12px; padding: 8px 18px; }
+
+/* Accueil */
+.accueil h2 { font-size: 1.5rem; }
+.legere { background: rgba(52, 199, 89, 0.12); border: 1px solid var(--vert); border-radius: 12px; padding: 10px 12px; }
+.invitation { border: 2px solid var(--accent); }
+.encouragement { font-size: 1.15rem; font-weight: 700; color: var(--vert); }
+
+/* Pendant la séance */
+.exo-nom { font-size: 1.6rem; margin: 4px 0; }
+.exo h4 { margin: 14px 0 2px; font-size: 1rem; }
+.desc { font-size: 1.02rem; }
+.astuce { background: var(--carte-2); border-radius: 12px; padding: 10px 12px; }
+.aide-serie { margin-top: 14px; }
+.anim.moyenne { background: var(--carte-2); border-radius: 14px; aspect-ratio: 4 / 3; max-height: 200px; margin: 0 auto 10px; }
+.anim.moyenne .fig { width: 100%; height: 100%; }
+
+/* Pendant le questionnaire : pas d'onglets en bas */
+body.mode-assistant .onglets { display: none; }
+body.mode-assistant main { padding-bottom: calc(32px + env(safe-area-inset-bottom)); }
+
+.q-progression { margin-bottom: 16px; }
+.q-progression-texte { font-weight: 700; color: var(--texte-doux); font-size: 0.95rem; }
+.q-progression .avancement { height: 10px; border-radius: 5px; }
+.assistant h2 { font-size: 1.6rem; margin-bottom: 10px; }
+.q-intro { font-size: 1.1rem; }
+.q-question { font-size: 1.2rem; margin: 18px 0 10px; }
+.q-choix-liste { display: grid; gap: 10px; }
+.q-choix-liste.deux { grid-template-columns: 1fr 1fr; }
+.q-choix-liste.deux .q-choix:first-child { grid-column: 1 / -1; }
+.q-choix {
+  display: flex; flex-direction: column; justify-content: center; gap: 2px;
+  min-height: 64px; width: 100%; padding: 12px 16px;
+  background: var(--carte); color: var(--texte);
+  border: 2px solid var(--ligne); border-radius: 16px;
+  font-size: 1.12rem; font-weight: 700; text-align: left;
+}
+.q-choix small { font-weight: 400; color: var(--texte-doux); font-size: 0.92rem; }
+.q-choix.actif { border-color: var(--accent); background: rgba(255, 122, 26, 0.16); }
+.q-choix.actif span::after { content: " ✓"; color: var(--accent); }
+.q-rangee { display: flex; gap: 8px; }
+.q-choix.rond { align-items: center; text-align: center; padding: 8px 4px; flex: 1; min-width: 0; font-size: 1.35rem; }
+.q-choix.rond small { font-size: 0.8rem; }
+.q-nav { display: grid; grid-template-columns: 1fr 1.6fr; gap: 10px; margin-top: 24px; }
+.q-nav .btn + .btn { margin-top: 0; }
+.q-deux-champs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.q-deja { margin: 24px 0 6px; color: var(--texte-doux); text-align: center; }
+.champ.centre { text-align: center; margin: 16px 0 6px; }
+.q-compteur { display: flex; align-items: center; justify-content: center; gap: 14px; }
+.q-compteur input { width: 110px; margin: 0; text-align: center; font-size: 2rem; font-weight: 800; min-height: 64px; }
+.q-compteur .btn-rond { width: 64px; height: 64px; font-size: 1.8rem; }
+.carte.avertissement { background: rgba(255, 122, 26, 0.12); border: 1px solid var(--accent); margin-top: 16px; }
+.carte.avertissement h3 { margin-bottom: 6px; }
+
+/* Résumé du profil (Réglages) */
+.resume { list-style: none; padding: 0; margin: 0 0 14px; }
+.resume li { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--ligne); }
+.resume li span { color: var(--texte-doux); }
+.resume li b { text-align: right; }
+
+/* Comment ça marche */
+.aide ol { padding-left: 22px; margin: 0; }
+.aide ol li { margin-bottom: 10px; }
+.aide dt { font-weight: 800; color: var(--accent); margin-top: 10px; }
+.aide dd { margin: 2px 0 0; }
+
+/* Fenêtre de confirmation */
+.modale {
+  position: fixed; inset: 0; z-index: 80;
+  display: flex; align-items: flex-end; justify-content: center;
+  padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+  background: rgba(0, 0, 0, 0.7);
+}
+.modale-boite {
+  width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto;
+  background: var(--carte); border: 1px solid var(--ligne); border-radius: 20px; padding: 20px;
+}
+.modale-boite h2 { font-size: 1.35rem; }
+#modale-boutons { margin-top: 16px; }
+/* Pendant le questionnaire, le message apparaît en haut (pour ne pas cacher les boutons) */
+body.mode-assistant .toast { bottom: auto; top: calc(70px + env(safe-area-inset-top)); }
+
+/* Très petits écrans (iPhone SE…) : on resserre un peu les lignes de séries */
+@media (max-width: 360px) {
+  main { padding-left: 10px; padding-right: 10px; }
+  .serie { gap: 5px; padding: 6px; }
+  .btn-rond, .btn-valider { width: 46px; height: 46px; font-size: 1.3rem; }
+  .serie input { width: 50px; min-height: 46px; font-size: 1.25rem; }
+  .q-choix.rond { font-size: 1.15rem; }
 }

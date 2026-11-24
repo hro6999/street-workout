@@ -3,8 +3,9 @@
 // ---------------------------------------------------------------------
 //  Organisation du fichier :
 //   1. Les données (chargement / sauvegarde dans le téléphone)
-//   2. Petits outils (dates, formats…)
-//   3. Les 4 écrans : Séance, Progrès, Poids, Réglages
+//   2. Petits outils (dates, formats, fenêtre de confirmation…)
+//   3. Les écrans : Séance, Progrès, Poids, Réglages, Comment ça marche
+//      (le questionnaire et le test sont dans questionnaire.js)
 //   4. Les actions (ce qui se passe quand on touche un bouton)
 //   5. Le minuteur, le son et la vibration
 //   6. Les graphiques
@@ -16,43 +17,21 @@
 
 const CLE_STOCKAGE = "street-workout-donnees";
 
-function donneesParDefaut() {
-  return {
-    version: 1,
-    configure: false,     // false tant que l'écran de bienvenue n'est pas rempli
-    progression: {},      // { tractions: {niveau, objectif, echecs}, ... }
-    seances: [],          // historique des séances terminées
-    poids: [],            // [{ date, kg }]
-    poidsObjectif: 70,
-    seancesParSemaine: 3,
-    son: true,
-    sonForce: false,      // iPhone : sonner même en mode silencieux
-    vibration: true,
-    enCours: null,        // la séance en train d'être faite (gardée si on ferme l'appli)
-    derniereSauvegarde: null,
-  };
-}
-
 function chargerDonnees() {
-  let d = donneesParDefaut();
+  let brut = null;
   try {
     const texte = localStorage.getItem(CLE_STOCKAGE);
-    if (texte) d = Object.assign(d, JSON.parse(texte));
+    if (texte) brut = JSON.parse(texte);
   } catch (e) {
     console.error("Impossible de lire les données", e);
   }
-  return completerDonnees(d);
+  // migrerDonnees (programme.js) met les anciennes données au format actuel
+  return completerDonnees(migrerDonnees(brut));
 }
 
-// Vérifie que chaque famille a bien une progression valide
+// Vérifie que chaque exercice du programme a bien une progression valide
 function completerDonnees(d) {
-  if (!d.configure) return d;
-  FAMILLES.forEach(function (f) {
-    const p = d.progression[f.id];
-    if (!p || p.niveau == null || p.niveau >= f.niveaux.length) {
-      d.progression[f.id] = etatInitial(f, 0);
-    }
-  });
+  if (d.configure && d.profil) preparerProgression(d.progression, d.profil);
   return d;
 }
 
@@ -67,20 +46,20 @@ function sauver() {
   try {
     localStorage.setItem(CLE_STOCKAGE, JSON.stringify(donnees));
   } catch (e) {
-    alert("Attention : impossible d'enregistrer les données sur cet appareil.");
+    afficherToast("⚠️ Impossible d'enregistrer les données sur cet appareil.");
   }
 }
 
 let donnees = chargerDonnees();
 let vueActuelle = "seance";
+let vuePrecedente = "seance";     // pour revenir en arrière depuis « Comment ça marche »
 let bilan = null;                 // résumé affiché juste après une séance
-let familleGraphique = "tractions";
+let familleGraphique = null;
 
 
 // ============ 2. PETITS OUTILS ============
 
 function el(id) { return document.getElementById(id); }
-function famille(id) { return FAMILLES.find(function (f) { return f.id === id; }); }
 
 // Nom de l'animation d'un niveau (voir animations.js), ex. "pompes-2"
 function cleAnim(familleId, niveau) { return familleId + "-" + niveau; }
@@ -88,7 +67,15 @@ function cleAnim(familleId, niveau) { return familleId + "-" + niveau; }
 function vignette(familleId, niveau, classe) { return ANIM.vignette(cleAnim(familleId, niveau), classe); }
 
 function suffixe(niv) { return niv.unite === "sec" ? " s" : ""; }
-function texteObjectif(f, niv, objectif) { return f.series + " × " + objectif + suffixe(niv); }
+function texteObjectif(nbSeries, niv, objectif) { return nbSeries + " × " + objectif + suffixe(niv); }
+function texteUnite(niv) { return niv.unite === "sec" ? "secondes" : "répétitions"; }
+
+// Protège le texte tapé par la personne (prénom) avant de l'afficher
+function echapper(t) {
+  return String(t == null ? "" : t).replace(/[&<>"']/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+  });
+}
 
 function dateCourte(iso) {
   return new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
@@ -110,20 +97,48 @@ function formatTemps(secondes) {
   return m + ":" + (s < 10 ? "0" : "") + s;
 }
 function arrondi1(x) { return Math.round(x * 10) / 10; }
+function nombre(texte) { return parseFloat(String(texte).replace(",", ".")); }
 
 // Un "score" pour le graphique : 1 = début du niveau 1, 2 = début du niveau 2...
 function scoreNiveau(f, etat) {
   const niv = f.niveaux[etat.niveau];
-  const fraction = Math.min(1, (etat.objectif - niv.debut) / (niv.max - niv.debut));
+  const fraction = Math.max(0, Math.min(1, (etat.objectif - niv.debut) / (niv.max - niv.debut)));
   return arrondi1(etat.niveau + 1 + fraction * 0.99);
 }
+
+// Le programme actuel et ses familles d'exercices
+function programmeActuel() { return genererProgramme(donnees.profil); }
+function famillesActives() {
+  return famillesDuProgramme(programmeActuel()).filter(function (id) { return donnees.progression[id]; });
+}
+function prenom() { return donnees.profil && donnees.profil.prenom ? donnees.profil.prenom : ""; }
 
 function afficherToast(texte) {
   const t = el("toast");
   t.textContent = texte;
   t.classList.remove("cache");
   clearTimeout(afficherToast.chrono);
-  afficherToast.chrono = setTimeout(function () { t.classList.add("cache"); }, 2800);
+  afficherToast.chrono = setTimeout(function () { t.classList.add("cache"); }, 3200);
+}
+
+// ----- Fenêtre de confirmation faite dans l'appli (à la place de confirm/alert) -----
+// boutons : [{ texte, classe ("principal", "secondaire", "danger"), action: fonction }]
+let boutonsModale = [];
+function ouvrirModale(titre, html, boutons) {
+  boutonsModale = boutons && boutons.length ? boutons : [{ texte: "OK", classe: "principal" }];
+  el("modale-titre").textContent = titre;
+  el("modale-texte").innerHTML = html || "";
+  el("modale-boutons").innerHTML = boutonsModale.map(function (b, i) {
+    return '<button class="btn ' + (b.classe || "secondaire") + '" data-action="modale" data-i="' + i + '">' + b.texte + "</button>";
+  }).join("");
+  el("modale").classList.remove("cache");
+  ANIM.activer(el("modale"));
+  const premier = el("modale-boutons").querySelector("button");
+  if (premier) premier.focus();
+}
+function fermerModale() {
+  el("modale").classList.add("cache");
+  el("modale-texte").innerHTML = "";
 }
 
 
@@ -131,9 +146,18 @@ function afficherToast(texte) {
 
 // Redessine l'écran actuel
 function rendre() {
+  // Premier lancement : on démarre le questionnaire
+  if (!donnees.configure && !assistant) assistant = nouvelAssistant("nouveau");
+  document.body.classList.toggle("mode-assistant", !!assistant);
   rendreEntete();
-  const ecrans = { seance: vueSeance, progres: vueProgres, poids: vuePoids, reglages: vueReglages };
-  el("vue").innerHTML = ecrans[vueActuelle]();
+  let html;
+  if (assistant) {
+    html = vueAssistant();
+  } else {
+    const ecrans = { seance: vueSeance, progres: vueProgres, poids: vuePoids, reglages: vueReglages, aide: vueAide };
+    html = (ecrans[vueActuelle] || vueSeance)();
+  }
+  el("vue").innerHTML = html;
   document.querySelectorAll(".onglets button").forEach(function (b) {
     b.classList.toggle("actif", b.dataset.vue === vueActuelle);
   });
@@ -142,89 +166,101 @@ function rendre() {
 }
 
 function rendreEntete() {
+  if (!donnees.configure || assistant) { el("compteur-semaine").innerHTML = ""; return; }
   const faites = seancesCetteSemaine(donnees.seances);
-  const prevues = donnees.seancesParSemaine;
+  const prevues = donnees.profil.seancesParSemaine;
   let points = "";
   for (let i = 0; i < Math.max(prevues, faites); i++) {
     points += '<span class="point' + (i < faites ? " plein" : "") + '"></span>';
   }
-  el("compteur-semaine").innerHTML = points + "<span>" + faites + "/" + prevues + "</span>";
+  el("compteur-semaine").innerHTML = points + "<span>" + faites + "/" + prevues + '</span><span class="lecteur">séances cette semaine</span>';
 }
 
 // ----- Écran SÉANCE -----
 function vueSeance() {
-  if (!donnees.configure) return vueBienvenue();
   if (donnees.enCours) return vueSeanceEnCours();
   return vueAccueilSeance();
 }
 
-function selectsNiveaux() {
-  return FAMILLES.map(function (f) {
-    const actuel = donnees.progression[f.id] ? donnees.progression[f.id].niveau : 0;
-    const options = f.niveaux.map(function (n, i) {
-      return '<option value="' + i + '"' + (i === actuel ? " selected" : "") + ">" +
-        (i + 1) + ". " + n.nom + "</option>";
-    }).join("");
-    return '<label class="champ">' + f.nom +
-      '<select id="niv-' + f.id + '">' + options + "</select></label>";
-  }).join("");
+const ENCOURAGEMENTS = [
+  "Bravo{p} ! Une séance de plus, c'est une victoire. 💪",
+  "Super travail{p} ! Ton corps te remerciera demain.",
+  "Tu l'as fait{p} ! La régularité, c'est le vrai secret.",
+  "Bien joué{p} ! Petit à petit, on va très loin.",
+  "Excellent{p} ! Pense à boire de l'eau et à bien dormir cette nuit.",
+  "Chapeau{p} ! Le plus dur, c'était de commencer. 👏",
+];
+
+function encouragement() {
+  const p = prenom() ? ", " + echapper(prenom()) : "";
+  return ENCOURAGEMENTS[Math.floor(Math.random() * ENCOURAGEMENTS.length)].replace("{p}", p);
 }
 
-function vueBienvenue() {
-  return '<div class="carte">' +
-    "<h2>Bienvenue 👋</h2>" +
-    "<p>Choisis ton niveau de départ pour chaque famille d'exercices.</p>" +
-    '<p class="doux">En cas de doute, prends le niveau plus facile : l\'appli te fera monter vite, ' +
-    "et c'est le meilleur moyen de reprendre sans te blesser.</p>" +
-    selectsNiveaux() +
-    '<label class="champ">⚖️ Ton poids actuel (kg)' +
-    '<input id="poids-depart" type="number" inputmode="decimal" step="0.1" value="60"></label>' +
-    '<button class="btn principal" data-action="configurer">C\'est parti !</button>' +
+function carteInvitation() {
+  return '<div class="carte invitation">' +
+    "<h2>✨ Nouveau : un programme fait pour toi</h2>" +
+    "<p>Réponds à 5 petites questions (objectif, matériel, temps disponible, douleurs éventuelles) " +
+    "et l'appli adapte ton programme. <b>Ta progression et ton historique sont conservés.</b></p>" +
+    '<p class="doux">⚠️ En cas de douleur pendant un exercice, arrête-toi. Si tu as un problème de santé, demande l\'avis d\'un médecin avant de t\'entraîner.</p>' +
+    '<button class="btn principal" data-action="personnaliser">Personnaliser mon programme</button>' +
+    '<button class="btn secondaire" data-action="plus-tard">Plus tard (garder mon programme actuel)</button>' +
     "</div>";
 }
 
 function vueAccueilSeance() {
   let html = "";
+  if (donnees.proposerQuestionnaire) html += carteInvitation();
 
   // Bilan de la séance qui vient d'être terminée
   if (bilan) {
-    html += '<div class="carte bilan"><h2>Séance terminée 💪</h2><ul>' +
-      bilan.map(function (b) {
+    html += '<div class="carte bilan"><h2>Séance terminée 🎉</h2>' +
+      '<p class="encouragement">' + bilan.encouragement + "</p><ul>" +
+      bilan.lignes.map(function (b) {
         return "<li>" + vignette(b.famille.id, b.niveau) + "<div><b>" + b.famille.nom + "</b><br>" + b.texte +
           (b.record ? '<div class="record">🏆 ' + b.record + "</div>" : "") + "</div></li>";
       }).join("") +
       "</ul></div>";
   }
 
+  const s = seanceDuJour(donnees);
+  const bonjour = prenom() ? "Salut " + echapper(prenom()) + " 👋" : "Salut 👋";
+  html += '<div class="carte accueil"><h2>' + bonjour + "</h2>";
+  if (s.legere) {
+    html += '<p class="legere">🌿 <b>Semaine légère</b> : un peu moins de séries et des objectifs plus faciles, ' +
+      "pour laisser ton corps récupérer. Ta progression reprend la semaine prochaine.</p>";
+  }
+  html += '<p class="doux">' + (s.nom ? "Séance " + s.nom + " · " : "") + s.exercices.length + " exercices · environ " +
+    dureeEstimee(s) + " min avec l'échauffement</p>" +
+    '<button class="btn principal geant" data-action="commencer">▶ Commencer ma séance du jour</button>' +
+    '<button class="btn secondaire" data-action="echauffement">🔥 Échauffement guidé (5 min, conseillé)</button></div>';
+
   // Conseils selon les dernières séances
   const faites = seancesCetteSemaine(donnees.seances);
   const derniere = donnees.seances[donnees.seances.length - 1];
   const conseils = [];
-  if (faites >= donnees.seancesParSemaine) {
+  if (faites >= donnees.profil.seancesParSemaine) {
     conseils.push("🏅 Objectif de la semaine atteint, bravo !");
   }
   if (derniere && joursEntre(derniere.date, new Date()) === 0) {
     conseils.push("✅ Séance déjà faite aujourd'hui. Repose-toi : les muscles se renforcent pendant le repos.");
-  } else if (derniere && joursEntre(derniere.date, new Date()) === 1) {
-    conseils.push("💡 Tu t'es entraîné hier. L'idéal : 1 jour de repos entre 2 séances (ex. lundi, mercredi, vendredi).");
+  } else if (derniere && joursEntre(derniere.date, new Date()) === 1 && donnees.profil.seancesParSemaine <= 3) {
+    conseils.push("💡 Tu t'es entraîné(e) hier. L'idéal : 1 jour de repos entre 2 séances (ex. lundi, mercredi, vendredi).");
   }
   if (conseils.length) {
     html += '<div class="carte">' + conseils.map(function (c) { return "<p>" + c + "</p>"; }).join("") + "</div>";
   }
 
   // Le programme du jour
-  html += '<div class="carte"><h2>Séance du jour</h2><ul class="liste-plan">';
-  FAMILLES.forEach(function (f) {
-    const p = donnees.progression[f.id];
-    const niv = f.niveaux[p.niveau];
-    html += "<li>" + vignette(f.id, p.niveau) + "<div><b>" + niv.nom + "</b>" +
-      '<div class="doux">' + f.nom + " · niveau " + (p.niveau + 1) + "/" + f.niveaux.length +
-      " · repos " + f.repos + " s</div></div>" +
-      '<span class="cible">' + texteObjectif(f, niv, p.objectif) + "</span></li>";
+  html += '<div class="carte"><h2>Au programme aujourd\'hui</h2><ul class="liste-plan">';
+  s.exercices.forEach(function (e) {
+    const f = famille(e.famille);
+    const niv = f.niveaux[e.niveau];
+    html += "<li>" + vignette(f.id, e.niveau) + "<div><b>" + niv.nom + "</b>" +
+      '<div class="doux">' + f.nom + " · niveau " + (e.niveau + 1) + "/" + f.niveaux.length + "</div></div>" +
+      '<span class="cible">' + texteObjectif(e.series, niv, e.objectif) + "</span></li>";
   });
-  html += "</ul>" +
-    '<button class="btn secondaire" data-action="echauffement">🔥 Échauffement guidé (5 min)</button>' +
-    '<button class="btn principal" data-action="commencer">▶ Commencer la séance</button></div>';
+  html += "</ul></div>";
+  html += '<button class="btn secondaire" data-action="aide">❓ Comment ça marche ?</button>';
   return html;
 }
 
@@ -236,7 +272,7 @@ function vueSeanceEnCours() {
     faites += ex.series.filter(function (s) { return s.faite; }).length;
   });
 
-  let html = '<div class="carte"><div class="niveau-titre"><span>Séance en cours</span><span>' +
+  let html = '<div class="carte"><div class="niveau-titre"><span>Séance en cours' + (ec.legere ? " 🌿" : "") + "</span><span>" +
     faites + " / " + total + " séries</span></div>" +
     '<div class="avancement vert"><div style="width:' + Math.round(faites / total * 100) + '%"></div></div></div>';
 
@@ -248,33 +284,44 @@ function vueSeanceEnCours() {
 
   // Les exercices de la séance : on en affiche UN à la fois, en grand
   const actuel = exerciceActuel();
-  html += '<div class="etapes-seance">' + ec.exercices.map(function (ex, i) {
+  html += '<div class="etapes-seance" style="grid-template-columns:repeat(' + ec.exercices.length + ',1fr)">' + ec.exercices.map(function (ex, i) {
     const nbFaites = ex.series.filter(function (s) { return s.faite; }).length;
     const termine = nbFaites === ex.series.length;
     return '<button data-action="voir-exo" data-ex="' + i + '" class="' + (i === actuel ? "actif " : "") + (termine ? "termine" : "") + '"' +
-      ' aria-label="' + famille(ex.famille).nom + '">' + vignette(ex.famille, ex.niveau) +
+      ' aria-label="Exercice ' + (i + 1) + " : " + famille(ex.famille).nom + '">' + vignette(ex.famille, ex.niveau) +
       "<span>" + (termine ? "✓" : nbFaites + "/" + ex.series.length) + "</span></button>";
   }).join("") + "</div>";
 
   const ex = ec.exercices[actuel];
   const f = famille(ex.famille);
   const niv = f.niveaux[ex.niveau];
+  const repos = ex.repos || f.repos;
   const termine = ex.series.every(function (s) { return s.faite; });
   html += '<div class="carte exo' + (termine ? " termine" : "") + '">' +
     ANIM.anime(cleAnim(ex.famille, ex.niveau), "grande") +
-    '<div class="exo-famille">' + f.nom + " · niveau " + (ex.niveau + 1) + "/" + f.niveaux.length + "</div>" +
-    "<h3>" + niv.nom + "</h3>" +
-    '<div class="objectif">Objectif : <b>' + texteObjectif(f, niv, ex.objectif) + "</b> " +
-    (niv.unite === "sec" ? "(secondes)" : "répétitions") + " · repos " + f.repos + " s</div>" +
-    '<ul class="points">' + niv.points.map(function (p) { return "<li>" + p + "</li>"; }).join("") + "</ul>" +
-    "<details><summary>Erreurs à éviter et explications</summary>" +
-    '<ul class="erreurs">' + niv.erreurs.map(function (e) { return "<li>" + e + "</li>"; }).join("") + "</ul>" +
-    "<p>" + niv.desc + "</p></details>";
+    '<div class="exo-famille">Exercice ' + (actuel + 1) + "/" + ec.exercices.length + " · " + f.nom + " · niveau " + (ex.niveau + 1) + "/" + f.niveaux.length + "</div>" +
+    '<h3 class="exo-nom">' + niv.nom + "</h3>" +
+    '<div class="objectif">Objectif : <b>' + texteObjectif(ex.series.length, niv, ex.objectif) + "</b><br>" +
+    '<span class="doux">' + ex.series.length + " séries de " + ex.objectif + " " + texteUnite(niv) + " · " + repos + " s de repos entre les séries</span></div>" +
+    '<p class="desc">' + niv.desc + "</p>" +
+    '<h4>Les bons gestes</h4><ul class="points">' + niv.points.map(function (p) { return "<li>" + p + "</li>"; }).join("") + "</ul>" +
+    '<h4>À éviter</h4><ul class="erreurs">' + niv.erreurs.map(function (e) { return "<li>" + e + "</li>"; }).join("") + "</ul>";
 
-  if (niv.unite === "sec" && !termine) {
-    html += '<button class="btn secondaire" data-action="chrono" data-ex="' + actuel + '">⏱️ Lancer le chrono (' + ex.objectif + " s)</button>";
+  // Astuce si la personne a signalé une douleur
+  if (f.conseils && donnees.profil) {
+    donnees.profil.limitations.forEach(function (l) {
+      if (f.conseils[l]) html += '<p class="astuce">🩹 ' + f.conseils[l] + "</p>";
+    });
   }
 
+  if (!termine) {
+    html += '<button class="btn secondaire" data-action="trop-dur" data-ex="' + actuel + '">😓 Trop dur ?</button>';
+  }
+  if (niv.unite === "sec" && !termine) {
+    html += '<button class="btn principal" data-action="chrono" data-ex="' + actuel + '">⏱️ Lancer le chrono (' + ex.objectif + " s)</button>";
+  }
+
+  html += '<p class="doux aide-serie">Après chaque série, ajuste le nombre avec − et + si besoin, puis appuie sur ✓. Le repos se lance tout seul.</p>';
   ex.series.forEach(function (s, j) {
     const bloque = s.faite ? " disabled" : "";
     const attr = ' data-ex="' + actuel + '" data-serie="' + j + '"';
@@ -284,7 +331,7 @@ function vueSeanceEnCours() {
       '<input type="number" inputmode="numeric" min="0" value="' + s.valeur + '"' + attr + bloque + ' aria-label="série ' + (j + 1) + '">' +
       '<button class="btn-rond" data-action="plus"' + attr + bloque + ' aria-label="plus">+</button>' +
       '<button class="btn-valider" data-action="' + (s.faite ? "annuler" : "valider") + '"' + attr +
-      ' aria-label="' + (s.faite ? "annuler" : "valider") + '">' + (s.faite ? "↺" : "✓") + "</button>" +
+      ' aria-label="' + (s.faite ? "annuler la série " : "valider la série ") + (j + 1) + '">' + (s.faite ? "↺" : "✓") + "</button>" +
       "</div>";
   });
   html += "</div>";
@@ -310,36 +357,52 @@ function exerciceActuel() {
   return prochaine ? prochaine.i : 0;
 }
 
+// Les niveaux d'un exercice qu'on peut choisir (selon matériel et douleurs)
+function selectsNiveaux() {
+  return famillesActives().map(function (id) {
+    const f = famille(id);
+    const actuel = donnees.progression[id].niveau;
+    const options = f.niveaux.map(function (n, i) {
+      if (i !== actuel && !niveauPermis(n, donnees.profil)) return "";
+      return '<option value="' + i + '"' + (i === actuel ? " selected" : "") + ">" + (i + 1) + ". " + n.nom + "</option>";
+    }).join("");
+    return '<label class="champ">' + f.nom + '<select id="niv-' + f.id + '">' + options + "</select></label>";
+  }).join("");
+}
+
 // ----- Écran PROGRÈS -----
 function vueProgres() {
-  if (!donnees.configure) return '<div class="carte"><p>Configure d\'abord l\'appli dans l\'onglet Séance.</p></div>';
+  const actives = famillesActives();
+  if (!familleGraphique || actives.indexOf(familleGraphique) < 0) familleGraphique = actives[0];
 
   // Mes niveaux
   let html = '<div class="carte"><h2>Mes niveaux</h2>';
-  FAMILLES.forEach(function (f) {
-    const p = donnees.progression[f.id];
+  actives.forEach(function (id) {
+    const f = famille(id);
+    const p = donnees.progression[id];
     const niv = f.niveaux[p.niveau];
-    const fraction = Math.min(1, (p.objectif - niv.debut) / (niv.max - niv.debut));
+    const fraction = Math.max(0, Math.min(1, (p.objectif - niv.debut) / (niv.max - niv.debut)));
     const global = (p.niveau + fraction) / f.niveaux.length;
     html += '<div class="niveau-ligne">' + vignette(f.id, p.niveau) + '<div class="niveau-texte"><div class="niveau-titre"><span>' + f.nom + "</span>" +
       "<span>Niv. " + (p.niveau + 1) + "/" + f.niveaux.length + "</span></div>" +
-      "<div>" + niv.nom + " — <b>" + texteObjectif(f, niv, p.objectif) + "</b>" +
-      ' <span class="doux">(prochain niveau à ' + texteObjectif(f, niv, niv.max) + ")</span></div>" +
+      "<div>" + niv.nom + " — objectif <b>" + p.objectif + suffixe(niv) + "</b> par série" +
+      ' <span class="doux">(niveau suivant à ' + niv.max + suffixe(niv) + ")</span></div>" +
       '<div class="avancement"><div style="width:' + Math.round(global * 100) + '%"></div></div></div></div>';
   });
   html += "</div>";
 
   // Records personnels
   html += '<div class="carte"><h2>Mes records 🏆</h2>';
-  FAMILLES.forEach(function (f) {
-    const p = donnees.progression[f.id];
+  actives.forEach(function (id) {
+    const f = famille(id);
+    const p = donnees.progression[id];
     const niv = f.niveaux[p.niveau];
     const record = meilleureSerie(donnees.seances, f.id, p.niveau);
     const plusHaut = Math.max(niveauMaxAtteint(donnees.seances, f.id), p.niveau);
     html += '<div class="niveau-ligne">' + vignette(f.id, p.niveau) + '<div class="niveau-texte"><b>' + f.nom + "</b>" +
       "<div>" + (record === null
         ? '<span class="doux">Pas encore de série au niveau « ' + niv.nom + " »</span>"
-        : "Meilleure série en " + niv.nom + " : <b>" + record + suffixe(niv) + (niv.unite === "sec" ? "" : " répétitions") + "</b>") +
+        : "Meilleure série en " + niv.nom + " : <b>" + record + " " + texteUnite(niv) + "</b>") +
       "</div>" +
       '<div class="doux">Plus haut niveau : ' + (plusHaut + 1) + " · " + f.niveaux[plusHaut].nom + "</div></div></div>";
   });
@@ -360,12 +423,12 @@ function vueProgres() {
 
   // Graphique
   html += '<div class="carte"><h2>Ma progression</h2><div class="choix-famille">' +
-    FAMILLES.map(function (f) {
-      return '<button data-action="graph-famille" data-id="' + f.id + '" class="' +
-        (f.id === familleGraphique ? "actif" : "") + '">' + f.nom + "</button>";
+    actives.map(function (id) {
+      return '<button data-action="graph-famille" data-id="' + id + '" class="' +
+        (id === familleGraphique ? "actif" : "") + '">' + famille(id).nom + "</button>";
     }).join("") +
     '</div><canvas id="graph-progres" class="graphique"></canvas>' +
-    '<p class="doux">La courbe monte quand l\'objectif augmente. 1 = début du niveau 1, 2 = début du niveau 2, etc.</p></div>';
+    '<p class="doux">La courbe monte quand tu progresses. 1 = début du niveau 1, 2 = début du niveau 2, etc.</p></div>';
 
   // Historique
   html += '<div class="carte"><h2>Historique</h2>';
@@ -374,7 +437,7 @@ function vueProgres() {
   } else {
     html += '<ul class="historique">';
     donnees.seances.slice().reverse().forEach(function (s) {
-      html += '<li><div class="date">' + dateLongue(s.date) + "</div>";
+      html += '<li><div class="date">' + dateLongue(s.date) + (s.legere ? " · 🌿 semaine légère" : "") + "</div>";
       s.exercices.forEach(function (e) {
         const f = famille(e.famille);
         const unite = e.unite === "sec" ? " s" : "";
@@ -393,86 +456,117 @@ function vueProgres() {
 function vuePoids() {
   const liste = donnees.poids;
   const dernier = liste[liste.length - 1];
-  const objectif = donnees.poidsObjectif;
+  const objectif = donnees.profil.poidsVise;
+  const sens = sensPoids(liste, objectif);
   let html = '<div class="carte"><h2>Mon poids</h2>';
 
   if (dernier) {
     const depart = liste[0].kg;
-    const reste = arrondi1(objectif - dernier.kg);
-    let avance = objectif !== depart ? (dernier.kg - depart) / (objectif - depart) : 1;
-    avance = Math.max(0, Math.min(1, avance));
-    html += '<div class="grand-chiffre">' + dernier.kg + " kg</div>" +
-      "<p>Objectif : <b>" + objectif + " kg</b> · " +
-      (reste > 0 ? "encore +" + reste + " kg" : reste < 0 ? "encore " + reste + " kg" : "atteint 🎉") + "</p>" +
-      '<div class="avancement vert"><div style="width:' + Math.round(avance * 100) + '%"></div></div>' +
-      '<p class="doux">Départ : ' + depart + " kg le " + dateCourte(liste[0].date) + "</p>";
+    html += '<div class="grand-chiffre">' + String(dernier.kg).replace(".", ",") + " kg</div>";
+    if (objectif != null) {
+      const reste = arrondi1(objectif - dernier.kg);
+      let avance = objectif !== depart ? (dernier.kg - depart) / (objectif - depart) : 1;
+      avance = Math.max(0, Math.min(1, avance));
+      const atteint = (sens > 0 && reste <= 0) || (sens < 0 && reste >= 0) || (sens === 0 && Math.abs(reste) < 0.5);
+      html += "<p>Poids visé : <b>" + objectif + " kg</b> · " +
+        (atteint ? "atteint 🎉" : "encore " + (reste > 0 ? "+" : "") + String(reste).replace(".", ",") + " kg") + "</p>";
+      if (sens !== 0) html += '<div class="avancement vert"><div style="width:' + Math.round(avance * 100) + '%"></div></div>';
+    }
+    html += '<p class="doux">Départ : ' + String(depart).replace(".", ",") + " kg le " + dateCourte(liste[0].date) + "</p>";
   } else {
-    html += '<p class="doux">Aucune pesée pour l\'instant.</p>';
+    html += '<p class="doux">Aucune pesée pour l\'instant. Le suivi du poids est facultatif.</p>';
   }
 
-  html += '<label class="champ">Nouvelle pesée (kg)<small>Pèse-toi le matin, à jeun, 1 fois par semaine.</small></label>' +
-    '<div class="ligne-saisie"><input id="saisie-poids" type="number" inputmode="decimal" step="0.1" placeholder="ex. 60.5">' +
-    '<button class="btn principal" data-action="ajouter-poids">Ajouter</button></div></div>';
+  html += '<label class="champ" for="saisie-poids">Nouvelle pesée (kg)<small>Pèse-toi le matin, à jeun, 1 fois par semaine.</small></label>' +
+    '<div class="ligne-saisie"><input id="saisie-poids" type="text" inputmode="decimal" autocomplete="off">' +
+    '<button class="btn principal" data-action="ajouter-poids">Ajouter</button></div>' +
+    '<label class="champ" for="reglage-objectif">Poids visé (kg, facultatif)' +
+    '<input id="reglage-objectif" type="text" inputmode="decimal" autocomplete="off" value="' + (objectif != null ? objectif : "") + '"></label></div>';
 
-  html += '<div class="carte"><h2>Évolution</h2><canvas id="graph-poids" class="graphique"></canvas>' +
-    '<p class="doux"><span class="legende vert"></span> ton objectif · <span class="legende gris"></span> le rythme idéal (+' +
-    String(RYTHME_IDEAL).replace(".", ",") + " kg par semaine)</p></div>";
-
-  // Tendance : est-ce que je prends du poids au bon rythme ?
-  if (dernier) html += carteTendance(tendancePoids(liste, objectif));
+  if (liste.length) {
+    html += '<div class="carte"><h2>Évolution</h2><canvas id="graph-poids" class="graphique"></canvas>' +
+      '<p class="doux">' + (objectif != null ? '<span class="legende vert"></span> ton poids visé' : "") +
+      (sens !== 0 ? ' · <span class="legende gris"></span> le rythme conseillé (' + (sens > 0 ? "+" + String(RYTHME_IDEAL).replace(".", ",") : "−" + String(RYTHME_IDEAL_PERTE).replace(".", ",")) + " kg par semaine)" : "") +
+      "</p></div>";
+    html += carteTendance(tendancePoids(liste, objectif));
+  }
 
   if (liste.length) {
     html += '<div class="carte"><h2>Mes pesées</h2>';
     liste.slice().reverse().forEach(function (p, iInverse) {
       const index = liste.length - 1 - iInverse;
-      html += '<div class="ligne-poids"><span>' + dateCourte(p.date) + " — <b>" + p.kg + " kg</b></span>" +
-        '<button class="btn-suppr" data-action="suppr-poids" data-index="' + index + '" aria-label="supprimer">✕</button></div>';
+      html += '<div class="ligne-poids"><span>' + dateCourte(p.date) + " — <b>" + String(p.kg).replace(".", ",") + " kg</b></span>" +
+        '<button class="btn-suppr" data-action="suppr-poids" data-index="' + index + '" aria-label="supprimer la pesée du ' + dateCourte(p.date) + '">✕</button></div>';
     });
     html += "</div>";
   }
 
-  html += '<div class="carte"><p class="doux">💡 Pour prendre du muscle : mange un peu plus que d\'habitude ' +
-    "(3 vrais repas + 1 ou 2 collations), des protéines à chaque repas (œufs, viande, poisson, lentilles, " +
-    "fromage blanc) et dors bien. Vise environ +0,25 à 0,5 kg par semaine.</p></div>";
+  const astuces = {
+    muscle: "💡 Pour prendre du muscle : mange un peu plus que d'habitude (3 vrais repas + 1 ou 2 collations), des protéines à chaque repas (œufs, viande, poisson, lentilles, fromage blanc) et dors bien. Vise environ +0,25 à 0,5 kg par semaine.",
+    perte: "💡 Pour perdre du poids : garde 3 repas par jour avec beaucoup de légumes et des protéines, limite les boissons sucrées et le grignotage, et bouge chaque jour (la marche compte !). Vise environ −0,25 à 1 kg par semaine, pas plus.",
+    force: "💡 Pour gagner en force : mange suffisamment (des protéines à chaque repas) et dors 7 à 9 heures. Le repos fait partie de l'entraînement.",
+    forme: "💡 Pour garder la forme : mange varié, bois de l'eau, dors bien et bouge un peu chaque jour. Ton poids devrait rester à peu près stable.",
+  };
+  html += '<div class="carte"><p class="doux">' + astuces[donnees.profil.objectif] + "</p></div>";
   return html;
 }
 
 function carteTendance(t) {
   const vitesse = t.parSemaine != null ? (t.parSemaine > 0 ? "+" : "") + String(t.parSemaine).replace(".", ",") + " kg par semaine" : "";
+  const sens = t.sens || 0;
   const textes = {
     attente: "📅 Pèse-toi 1 fois par semaine : ta tendance s'affichera après 2 pesées espacées d'au moins 10 jours.",
-    atteint: "🎉 Objectif atteint ! Tu peux viser un nouvel objectif dans les Réglages.",
+    atteint: "🎉 Poids visé atteint ! Tu peux en choisir un nouveau juste au-dessus.",
     bon: "✅ Bon rythme : " + vitesse + ".",
-    stagne: "⏸️ Ton poids ne monte presque plus (" + vitesse + "). Ajoute environ 300 kcal par jour, par exemple " +
-      "un grand verre de lait et une banane, ou une poignée d'amandes, ou un bol de fromage blanc avec des flocons d'avoine.",
-    baisse: "↘️ Ton poids baisse (" + vitesse + "). Tu ne manges pas assez pour ton entraînement : ajoute une vraie collation " +
-      "chaque jour (environ 300 à 500 kcal).",
-    rapide: "⚠️ Ça monte vite (" + vitesse + "). Au-delà de 0,5 kg par semaine, une partie risque d'être du gras : " +
-      "réduis un peu les portions ou les grignotages sucrés.",
+    stagne: sens > 0
+      ? "⏸️ Ton poids ne monte presque plus (" + vitesse + "). Ajoute environ 300 kcal par jour, par exemple un grand verre de lait et une banane, ou une poignée d'amandes."
+      : "⏸️ Ton poids ne baisse presque plus (" + vitesse + "). Réduis un peu les portions, le sucre et le grignotage, et marche un peu plus chaque jour.",
+    baisse: sens > 0
+      ? "↘️ Ton poids baisse (" + vitesse + "). Tu ne manges pas assez pour ton entraînement : ajoute une vraie collation chaque jour."
+      : "↘️ Ton poids baisse un peu (" + vitesse + "). Vérifie que tu manges assez pour avoir de l'énergie.",
+    inverse: "↗️ Ton poids remonte (" + vitesse + "). Pas de panique : surveille les portions et les boissons sucrées cette semaine.",
+    rapide: sens > 0
+      ? "⚠️ Ça monte vite (" + vitesse + "). Au-delà de 0,5 kg par semaine, une partie risque d'être du gras : réduis un peu les grignotages sucrés."
+      : "⚠️ Ça baisse très vite (" + vitesse + "). Plus d'1 kg par semaine, c'est trop : mange un peu plus pour ne pas perdre de muscle ni d'énergie.",
+    stable: "✅ Ton poids est stable (" + vitesse + ").",
+    hausse: "↗️ Ton poids monte un peu (" + vitesse + ").",
   };
   let html = '<div class="carte"><h2>Ma tendance</h2><p>' + textes[t.type] + "</p>";
   if (t.dateObjectif && t.type !== "atteint") {
-    html += '<p class="doux">À ce rythme, objectif atteint vers ' +
+    html += '<p class="doux">À ce rythme, poids visé atteint vers ' +
       t.dateObjectif.toLocaleDateString("fr-FR", { month: "long", year: "numeric" }) + ".</p>";
   }
   return html + "</div>";
 }
 
 // ----- Écran RÉGLAGES -----
-function vueReglages() {
-  let html = "";
-  if (donnees.configure) {
-    html += '<div class="carte"><h2>Changer mes niveaux</h2>' +
-      '<p class="doux">À utiliser si un niveau est trop facile ou trop dur. L\'objectif repartira au début du niveau choisi.</p>' +
-      selectsNiveaux() +
-      '<button class="btn secondaire" data-action="changer-niveaux">Appliquer les niveaux</button></div>';
+function resumeProfil(p) {
+  if (p.classique) {
+    return '<p>Programme d\'origine (4 exercices : tractions, pompes, abdos, gainage).</p>' +
+      '<p class="doux">Réponds au questionnaire pour avoir un programme adapté à ton objectif, ton matériel et ton temps.</p>';
   }
+  const materiel = p.materiel.length ? p.materiel.map(function (m) { return MATERIELS[m].nom; }).join(", ") : "Rien (exercices au sol)";
+  const douleurs = p.limitations.length ? p.limitations.map(function (l) { return LIMITATIONS[l]; }).join(", ") : "Aucune";
+  return '<ul class="resume">' +
+    (p.prenom ? "<li><span>Prénom</span><b>" + echapper(p.prenom) + "</b></li>" : "") +
+    "<li><span>Objectif</span><b>" + OBJECTIFS[p.objectif].emoji + " " + OBJECTIFS[p.objectif].nom + "</b></li>" +
+    "<li><span>Niveau</span><b>" + NIVEAUX_RESSENTIS[p.niveau].nom + "</b></li>" +
+    "<li><span>Matériel</span><b>" + materiel + "</b></li>" +
+    "<li><span>Séances</span><b>" + p.seancesParSemaine + " par semaine, " + p.duree + " min</b></li>" +
+    "<li><span>Douleurs</span><b>" + douleurs + "</b></li>" +
+    "</ul>";
+}
 
-  html += '<div class="carte"><h2>Préférences</h2>' +
-    '<label class="champ">Objectif de poids (kg)<input id="reglage-objectif" type="number" inputmode="decimal" step="0.5" value="' + donnees.poidsObjectif + '"></label>' +
-    '<label class="champ">Séances prévues par semaine<select id="reglage-seances">' +
-    [3, 4, 5].map(function (n) { return '<option value="' + n + '"' + (n === donnees.seancesParSemaine ? " selected" : "") + ">" + n + "</option>"; }).join("") +
-    "</select></label>" +
+function vueReglages() {
+  let html = '<div class="carte"><h2>Mon profil</h2>' + resumeProfil(donnees.profil) +
+    '<button class="btn principal" data-action="personnaliser">✏️ ' + (donnees.profil.classique ? "Personnaliser mon programme" : "Modifier mes réponses") + "</button></div>";
+
+  html += '<div class="carte"><h2>Changer mes niveaux</h2>' +
+    '<p class="doux">À utiliser si un exercice est trop facile ou trop dur. L\'objectif repartira au début du niveau choisi.</p>' +
+    selectsNiveaux() +
+    '<button class="btn secondaire" data-action="changer-niveaux">Appliquer les niveaux</button></div>';
+
+  html += '<div class="carte"><h2>Son et vibration</h2>' +
     '<label class="case"><input type="checkbox" id="reglage-son"' + (donnees.son ? " checked" : "") + "> 🔔 Son à la fin du minuteur</label>" +
     ("audioSession" in navigator
       ? '<label class="case"><input type="checkbox" id="reglage-son-force"' + (donnees.sonForce ? " checked" : "") + "> 🔕 Sonner même en mode silencieux</label>" +
@@ -482,6 +576,8 @@ function vueReglages() {
       ? '<label class="case"><input type="checkbox" id="reglage-vibration"' + (donnees.vibration ? " checked" : "") + "> 📳 Vibration</label>"
       : '<p class="doux">📳 Vibration : impossible sur ce téléphone (normal sur iPhone). À la place, l\'écran clignote en orange à la fin du minuteur.</p>') +
     "</div>";
+
+  html += '<button class="btn secondaire espace" data-action="aide">❓ Comment ça marche ?</button>';
 
   html += '<div class="carte"><h2>Vérifier mon téléphone</h2>' +
     '<p class="doux">Teste le son, la vibration, l\'écran allumé et le mode hors-ligne. Monte le volume avant.</p>' +
@@ -495,16 +591,49 @@ function vueReglages() {
   html += "</div>";
 
   html += '<div class="carte"><h2>Sauvegarde</h2>' +
-    '<p class="doux">Tes données sont enregistrées uniquement sur cet appareil. Exporte-les régulièrement ' +
-    "(et avant de changer de téléphone) : tu obtiens un fichier .json à garder précieusement.</p>" +
+    '<p class="doux">Tes données sont enregistrées uniquement sur ce téléphone : rien n\'est envoyé sur internet. ' +
+    "Pour changer de téléphone, exporte-les (tu obtiens un fichier .json), puis importe ce fichier sur le nouveau.</p>" +
     '<p class="doux">Dernière sauvegarde : ' + (donnees.derniereSauvegarde ? dateLongue(donnees.derniereSauvegarde) : "jamais") + "</p>" +
     '<button class="btn principal" data-action="exporter">⬇️ Exporter mes données</button>' +
     '<button class="btn secondaire" data-action="importer">⬆️ Importer une sauvegarde</button>' +
     '<input type="file" id="fichier-import" accept=".json,application/json" class="cache"></div>';
 
-  html += '<div class="carte"><h2>Zone dangereuse</h2>' +
-    '<button class="btn danger" data-action="tout-effacer">🗑️ Tout effacer</button></div>';
+  html += '<div class="carte"><h2>Tout recommencer</h2>' +
+    '<p class="doux">Efface toutes tes données (séances, niveaux, poids, réponses) et relance le questionnaire.</p>' +
+    '<button class="btn danger" data-action="tout-effacer">🗑️ Tout recommencer</button></div>';
   return html;
+}
+
+// ----- Écran COMMENT ÇA MARCHE -----
+function vueAide() {
+  return '<button class="btn secondaire petit retour" data-action="retour-aide">◀ Retour</button>' +
+    '<div class="carte aide"><h2>Comment ça marche ?</h2>' +
+    "<ol>" +
+    "<li><b>Un programme pour toi.</b> Au début, tu as répondu à quelques questions (objectif, niveau, matériel, temps). L'appli a choisi tes exercices et ton niveau de départ.</li>" +
+    "<li><b>Chaque séance :</b> appuie sur « Commencer ma séance du jour ». Fais les exercices un par un, en suivant le petit bonhomme.</li>" +
+    "<li><b>Après chaque série,</b> note combien tu en as fait et appuie sur ✓. Un minuteur de repos se lance avec un son (ou une vibration).</li>" +
+    "<li><b>Tu progresses tout seul :</b> si tu réussis, l'objectif augmente un peu. Quand il est assez haut, tu passes à un exercice plus difficile. Si tu rates plusieurs fois, l'appli rend l'exercice un peu plus facile.</li>" +
+    "<li><b>Trop dur ?</b> Pendant la séance, le bouton « Trop dur ? » te propose une version plus facile.</li>" +
+    "<li><b>Semaine légère :</b> toutes les 5 semaines, la séance est plus légère pour que ton corps récupère.</li>" +
+    "</ol></div>" +
+    '<div class="carte aide"><h2>Les mots à connaître</h2><dl>' +
+    "<dt>Répétition</dt><dd>Un mouvement complet (par exemple : descendre et remonter une fois pendant une pompe).</dd>" +
+    "<dt>Série</dt><dd>Un groupe de répétitions faites sans s'arrêter. « 3 × 8 » veut dire : 3 séries de 8 répétitions.</dd>" +
+    "<dt>Repos</dt><dd>La pause entre deux séries. Le minuteur te dit quand reprendre.</dd>" +
+    "<dt>Gainage</dt><dd>Tenir une position sans bouger (comme la planche) pour muscler le ventre et le dos.</dd>" +
+    "<dt>Niveau</dt><dd>Chaque exercice a plusieurs versions, de la plus facile à la plus dure.</dd>" +
+    "<dt>Échauffement</dt><dd>5 minutes de mouvements doux avant la séance, pour préparer le corps et éviter les blessures.</dd>" +
+    "</dl></div>" +
+    '<div class="carte aide"><h2>Ta sécurité</h2>' +
+    "<p>⚠️ Si tu as mal pendant un exercice (douleur vive, pas juste la fatigue du muscle), <b>arrête-toi</b>. " +
+    "En cas de problème de santé (cœur, tension, blessure, grossesse…), demande l'avis d'un médecin avant de commencer.</p>" +
+    "<p>Si tu as signalé une douleur (poignets, genoux, dos, épaules), l'appli évite les exercices qui la sollicitent.</p></div>" +
+    '<div class="carte aide"><h2>Tes données</h2>' +
+    "<p>Tout reste <b>sur ton téléphone</b> : rien n'est envoyé sur internet, personne d'autre ne voit tes données. " +
+    "L'appli marche aussi sans connexion.</p>" +
+    "<p>Pour changer de téléphone : Réglages → Exporter mes données, puis Importer sur le nouveau téléphone.</p>" +
+    "<p>Tu peux changer tes réponses à tout moment dans Réglages → Modifier mes réponses : ta progression est gardée.</p></div>" +
+    '<button class="btn secondaire" data-action="retour-aide">◀ Retour</button>';
 }
 
 
@@ -518,28 +647,50 @@ const actions = {
     window.scrollTo(0, 0);
   },
 
-  configurer: function () {
-    FAMILLES.forEach(function (f) {
-      donnees.progression[f.id] = etatInitial(f, parseInt(el("niv-" + f.id).value, 10));
-    });
-    const kg = parseFloat(el("poids-depart").value);
-    if (kg > 20 && kg < 300) donnees.poids.push({ date: new Date().toISOString(), kg: arrondi1(kg) });
-    donnees.configure = true;
-    sauver();
-    protegerStockage();
+  aide: function () {
+    vuePrecedente = vueActuelle === "aide" ? "seance" : vueActuelle;
+    vueActuelle = "aide";
     rendre();
+    window.scrollTo(0, 0);
+  },
+  "retour-aide": function () {
+    vueActuelle = vuePrecedente || "seance";
+    rendre();
+    window.scrollTo(0, 0);
+  },
+
+  modale: function (b) {
+    const bouton = boutonsModale[+b.dataset.i];
+    fermerModale();
+    if (bouton && bouton.action) bouton.action();
+  },
+
+  personnaliser: function () {
+    if (donnees.enCours) { afficherToast("Termine d'abord ta séance en cours."); return; }
+    assistant = nouvelAssistant("modifier");
+    rendre();
+    window.scrollTo(0, 0);
+  },
+
+  "plus-tard": function () {
+    donnees.proposerQuestionnaire = false;
+    sauver();
+    rendre();
+    afficherToast("Tu pourras personnaliser ton programme plus tard dans Réglages.");
   },
 
   commencer: function () {
     debloquerSon();
     bilan = null;
+    const s = seanceDuJour(donnees);
     donnees.enCours = {
       debut: new Date().toISOString(),
-      exercices: FAMILLES.map(function (f) {
-        const p = donnees.progression[f.id];
+      nom: s.nom,
+      legere: s.legere,
+      exercices: s.exercices.map(function (e) {
         const series = [];
-        for (let i = 0; i < f.series; i++) series.push({ valeur: p.objectif, faite: false });
-        return { famille: f.id, niveau: p.niveau, objectif: p.objectif, series: series };
+        for (let i = 0; i < e.series; i++) series.push({ valeur: e.objectif, faite: false });
+        return { famille: e.famille, niveau: e.niveau, objectif: e.objectif, repos: e.repos, series: series };
       }),
     };
     sauver();
@@ -588,14 +739,20 @@ const actions = {
     demarrerMinuteur(5, "Mets-toi en position", nom, lancerMaintien, lancerMaintien, { visuel: visuel });
   },
 
+  "trop-dur": function (b) { proposerPlusFacile(+b.dataset.ex); },
+
   terminer: terminerSeance,
 
   abandonner: function () {
-    if (!confirm("Abandonner cette séance ? Rien ne sera enregistré.")) return;
-    donnees.enCours = null;
-    sauver();
-    libererEcran();
-    rendre();
+    ouvrirModale("Abandonner la séance ?", "<p>Rien ne sera enregistré pour cette séance.</p>", [
+      { texte: "Oui, abandonner", classe: "danger", action: function () {
+        donnees.enCours = null;
+        sauver();
+        libererEcran();
+        rendre();
+      } },
+      { texte: "Non, je continue", classe: "secondaire" },
+    ]);
   },
 
   "graph-famille": function (b) {
@@ -604,36 +761,35 @@ const actions = {
   },
 
   "ajouter-poids": function () {
-    const kg = parseFloat(String(el("saisie-poids").value).replace(",", "."));
-    if (!(kg > 20 && kg < 300)) { afficherToast("Entre un poids valide, par exemple 60.5"); return; }
-    const maintenant = new Date().toISOString();
-    // Une seule pesée par jour : on remplace celle du jour si elle existe
-    const dernier = donnees.poids[donnees.poids.length - 1];
-    if (dernier && memeJour(dernier.date, maintenant)) {
-      dernier.kg = arrondi1(kg);
-      dernier.date = maintenant;
-    } else {
-      donnees.poids.push({ date: maintenant, kg: arrondi1(kg) });
-    }
+    const kg = nombre(el("saisie-poids").value);
+    if (!(kg > 20 && kg < 300)) { afficherToast("Entre un poids valide en kg, par exemple 72,5"); return; }
+    ajouterPesee(kg);
     sauver();
     rendre();
     afficherToast("Pesée enregistrée ✅");
   },
 
   "suppr-poids": function (b) {
-    if (!confirm("Supprimer cette pesée ?")) return;
-    donnees.poids.splice(+b.dataset.index, 1);
-    sauver();
-    rendre();
+    const index = +b.dataset.index;
+    const p = donnees.poids[index];
+    ouvrirModale("Supprimer cette pesée ?", "<p>" + dateCourte(p.date) + " — <b>" + p.kg + " kg</b></p>", [
+      { texte: "Oui, supprimer", classe: "danger", action: function () {
+        donnees.poids.splice(index, 1);
+        sauver();
+        rendre();
+      } },
+      { texte: "Annuler", classe: "secondaire" },
+    ]);
   },
 
   "changer-niveaux": function () {
     if (donnees.enCours) { afficherToast("Termine d'abord ta séance en cours."); return; }
     let change = false;
-    FAMILLES.forEach(function (f) {
-      const choisi = parseInt(el("niv-" + f.id).value, 10);
-      if (choisi !== donnees.progression[f.id].niveau) {
-        donnees.progression[f.id] = etatInitial(f, choisi);
+    famillesActives().forEach(function (id) {
+      const f = famille(id);
+      const choisi = parseInt(el("niv-" + id).value, 10);
+      if (choisi !== donnees.progression[id].niveau) {
+        donnees.progression[id] = etatInitial(f, choisi);
         change = true;
       }
     });
@@ -649,13 +805,22 @@ const actions = {
   importer: function () { el("fichier-import").click(); },
 
   "tout-effacer": function () {
-    if (!confirm("Effacer TOUTES tes données (séances, niveaux, poids) ?")) return;
-    if (!confirm("Vraiment ? Pense à exporter avant. Cette action est définitive.")) return;
-    localStorage.removeItem(CLE_STOCKAGE);
-    donnees = donneesParDefaut();
-    bilan = null;
-    vueActuelle = "seance";
-    rendre();
+    ouvrirModale("Tout recommencer ?",
+      "<p>Toutes tes données seront <b>effacées définitivement</b> : séances, niveaux, pesées et réponses au questionnaire.</p>" +
+      '<p class="doux">Conseil : exporte tes données avant (Réglages → Sauvegarde).</p>', [
+        { texte: "🗑️ Oui, tout effacer", classe: "danger", action: function () {
+          try { localStorage.removeItem(CLE_STOCKAGE); } catch (e) { /* ignoré */ }
+          arreterMinuteur();
+          libererEcran();
+          donnees = donneesParDefaut();
+          bilan = null;
+          assistant = null;
+          vueActuelle = "seance";
+          rendre();
+          window.scrollTo(0, 0);
+        } },
+        { texte: "Non, garder mes données", classe: "secondaire" },
+      ]);
   },
 
   "minuteur-moins": function () { minuteur.fin -= 15000; tic(); },
@@ -663,6 +828,20 @@ const actions = {
   "minuteur-passer": passerMinuteur,
   "minuteur-stop": function () { arreterMinuteur(); finEchauffement(false); },
 };
+// On ajoute les actions du questionnaire (questionnaire.js)
+Object.assign(actions, ACTIONS_QUESTIONNAIRE);
+
+// Une seule pesée par jour : on remplace celle du jour si elle existe
+function ajouterPesee(kg) {
+  const maintenant = new Date().toISOString();
+  const dernier = donnees.poids[donnees.poids.length - 1];
+  if (dernier && memeJour(dernier.date, maintenant)) {
+    dernier.kg = arrondi1(kg);
+    dernier.date = maintenant;
+  } else {
+    donnees.poids.push({ date: maintenant, kg: arrondi1(kg) });
+  }
+}
 
 function changerValeur(b, sens) {
   const i = +b.dataset.ex, j = +b.dataset.serie;
@@ -673,6 +852,62 @@ function changerValeur(b, sens) {
   sauver();
   // On met juste à jour la case, sans tout redessiner
   document.querySelector('input[data-ex="' + i + '"][data-serie="' + j + '"]').value = serie.valeur;
+}
+
+// « Trop dur ? » : propose la version plus facile de l'exercice
+function proposerPlusFacile(i) {
+  const ec = donnees.enCours;
+  const ex = ec.exercices[i];
+  const f = famille(ex.famille);
+  const niv = f.niveaux[ex.niveau];
+  const facile = niveauPlusFacile(f, ex.niveau, donnees.profil);
+  const nb = ex.series.length;
+
+  if (facile >= 0) {
+    const nf = f.niveaux[facile];
+    const objectifNormal = objectifMilieu(nf);
+    const objectif = ec.legere ? objectifLeger(nf, objectifNormal) : objectifNormal;
+    ouvrirModale("Version plus facile",
+      ANIM.anime(cleAnim(f.id, facile), "moyenne") +
+      "<p><b>" + nf.nom + "</b> · objectif " + texteObjectif(nb, nf, objectif) + "</p>" +
+      '<p class="doux">' + nf.desc + "</p>" +
+      '<p class="doux">Les séries de cet exercice repartent de zéro. Pas de souci : c\'est en faisant bien les mouvements qu\'on progresse !</p>', [
+        { texte: "✅ Oui, version facile", classe: "principal", action: function () {
+          ex.niveau = facile;
+          ex.objectif = objectif;
+          ex.series.forEach(function (s) { s.valeur = objectif; s.faite = false; });
+          donnees.progression[f.id] = etatInitial(f, facile, objectifNormal);
+          sauver();
+          rendre();
+          afficherToast("C'est noté : " + nf.nom + " 👍");
+        } },
+        { texte: "Non, je continue", classe: "secondaire" },
+      ]);
+    return;
+  }
+
+  // Déjà la version la plus facile : on peut baisser l'objectif
+  const plancher = objectifPlancher(niv);
+  if (ex.objectif > plancher) {
+    const nouvel = Math.max(plancher, ex.objectif - niv.pas);
+    ouvrirModale("Baisser un peu l'objectif ?",
+      "<p>C'est déjà la version la plus simple de cet exercice. On passe l'objectif de <b>" + ex.objectif + "</b> à <b>" + nouvel + "</b> " + texteUnite(niv) + " par série ?</p>", [
+        { texte: "✅ Oui, baisser", classe: "principal", action: function () {
+          ex.objectif = nouvel;
+          ex.series.forEach(function (s) { if (!s.faite) s.valeur = nouvel; });
+          const p = donnees.progression[f.id];
+          p.objectif = Math.max(plancher, Math.min(p.objectif, nouvel));
+          p.echecs = 0;
+          sauver();
+          rendre();
+        } },
+        { texte: "Non, je continue", classe: "secondaire" },
+      ]);
+    return;
+  }
+  ouvrirModale("Fais ce que tu peux 💪",
+    "<p>C'est déjà la version la plus simple. Fais le nombre que tu peux, même une seule répétition compte. " +
+    "Prends un peu plus de repos si besoin (bouton +15 s du minuteur).</p>", [{ texte: "OK", classe: "principal" }]);
 }
 
 function validerSerie(i, j) {
@@ -693,7 +928,7 @@ function validerSerie(i, j) {
   const f = famille(ex.famille);
   const exProchain = donnees.enCours.exercices[prochaine.i];
   const nivProchain = famille(exProchain.famille).niveaux[exProchain.niveau];
-  demarrerMinuteur(f.repos, "Repos 😮‍💨", "Ensuite : " + nivProchain.nom + " — série " + (prochaine.j + 1),
+  demarrerMinuteur(ex.repos || f.repos, "Repos 😮‍💨", "Ensuite : " + nivProchain.nom + " — série " + (prochaine.j + 1),
     null, null, { visuel: cleAnim(exProchain.famille, exProchain.niveau) });
 }
 
@@ -731,44 +966,75 @@ function terminerSeance() {
   });
 
   if (faites === 0) {
-    if (confirm("Aucune série cochée. Annuler cette séance ?")) {
-      donnees.enCours = null; sauver(); libererEcran(); rendre();
-    }
+    ouvrirModale("Aucune série cochée", "<p>Tu n'as validé aucune série (bouton ✓). Annuler cette séance ?</p>", [
+      { texte: "Oui, annuler la séance", classe: "danger", action: function () {
+        donnees.enCours = null; sauver(); libererEcran(); rendre();
+      } },
+      { texte: "Non, je continue", classe: "secondaire" },
+    ]);
     return;
   }
-  if (faites < total && !confirm("Certaines séries ne sont pas cochées : la progression n'avancera pas sur ces exercices. Terminer quand même ?")) {
+  if (faites < total) {
+    ouvrirModale("Terminer maintenant ?",
+      "<p>Certaines séries ne sont pas cochées : la progression n'avancera pas sur ces exercices. Ce n'est pas grave, tu feras mieux la prochaine fois !</p>", [
+        { texte: "Oui, terminer", classe: "principal", action: enregistrerSeance },
+        { texte: "Non, je continue", classe: "secondaire" },
+      ]);
     return;
   }
+  enregistrerSeance();
+}
 
+function enregistrerSeance() {
+  const ec = donnees.enCours;
+  const prog = programmeActuel();
   arreterMinuteur();
-  bilan = [];
+  const lignes = [];
   const exercices = [];
   ec.exercices.forEach(function (ex) {
     const f = famille(ex.famille);
     const niv = f.niveaux[ex.niveau];
     const seriesFaites = ex.series.filter(function (s) { return s.faite; }).map(function (s) { return s.valeur; });
-    const avant = { niveau: ex.niveau, objectif: ex.objectif, echecs: donnees.progression[f.id].echecs };
-    const resultat = appliquerResultat(f, avant, seriesFaites);
+    const etatAvant = donnees.progression[f.id] || etatInitial(f, ex.niveau, ex.objectif);
+    const avant = { niveau: ex.niveau, objectif: ex.objectif, echecs: etatAvant.echecs || 0, reussites: etatAvant.reussites || 0 };
+    let resultat;
+    if (ec.legere) {
+      // Semaine légère : on ne change pas la progression
+      resultat = { etat: etatAvant, type: estReussie(f, avant, seriesFaites, ex.series.length) ? "legere" : "legere-ratee",
+        message: "🌿 Semaine légère : bien récupéré ! On reprend la progression la semaine prochaine." };
+    } else {
+      resultat = appliquerResultat(f, avant, seriesFaites, {
+        nbSeries: ex.series.length,
+        reussitesPourMonter: prog.rythme.reussitesPourMonter,
+        echecsAvantBaisse: prog.rythme.echecsAvantBaisse,
+        permis: permisPour(f, donnees.profil),
+      });
+      donnees.progression[f.id] = resultat.etat;
+    }
 
     // Nouveau record ? (on compare avec les séances d'avant, au même niveau)
     const ancienRecord = meilleureSerie(donnees.seances, f.id, ex.niveau);
     const meilleure = seriesFaites.length ? Math.max.apply(null, seriesFaites) : null;
     const record = ancienRecord !== null && meilleure > ancienRecord
       ? "Nouveau record : " + meilleure + suffixe(niv) + " (avant : " + ancienRecord + suffixe(niv) + ")" : null;
-    donnees.progression[f.id] = resultat.etat;
 
     exercices.push({
       famille: f.id, niveau: ex.niveau, nom: niv.nom, unite: niv.unite,
       objectif: ex.objectif, faites: seriesFaites,
-      reussi: resultat.type === "progres" || resultat.type === "niveau" || resultat.type === "max",
+      reussi: typeReussi(resultat.type) || resultat.type === "legere",
       resultat: resultat.type,
-      score: scoreNiveau(f, resultat.etat),
+      score: scoreNiveau(f, donnees.progression[f.id]),
     });
-    bilan.push({ famille: f, niveau: ex.niveau, texte: resultat.message, record: record });
+    lignes.push({ famille: f, niveau: ex.niveau, texte: resultat.message, record: record });
   });
 
-  donnees.seances.push({ date: new Date().toISOString(), debut: ec.debut, exercices: exercices });
+  const seance = { date: new Date().toISOString(), debut: ec.debut, exercices: exercices };
+  if (ec.legere) seance.legere = true;
+  if (ec.nom) seance.nom = ec.nom;
+  donnees.seances.push(seance);
+  donnees.seanceSuivante = ((donnees.seanceSuivante || 0) + 1) % prog.seances.length;
   donnees.enCours = null;
+  bilan = { encouragement: encouragement(), lignes: lignes };
   sauver();
   libererEcran();
   rendre();
@@ -866,16 +1132,23 @@ function importerFichier(fichier) {
   lecteur.onload = function () {
     let lu;
     try { lu = JSON.parse(lecteur.result); } catch (e) { lu = null; }
-    if (!lu || !Array.isArray(lu.seances) || typeof lu.progression !== "object") {
-      alert("Ce fichier n'est pas une sauvegarde valide de l'appli.");
+    if (!lu || typeof lu !== "object" || !Array.isArray(lu.seances) || typeof lu.progression !== "object") {
+      ouvrirModale("Fichier non reconnu", "<p>Ce fichier n'est pas une sauvegarde valide de l'appli.</p>", [{ texte: "OK", classe: "principal" }]);
       return;
     }
-    if (!confirm("Remplacer tes données actuelles par celles du fichier (" + lu.seances.length + " séances) ?")) return;
-    donnees = completerDonnees(Object.assign(donneesParDefaut(), lu));
-    sauver();
-    bilan = null;
-    rendre();
-    afficherToast("Sauvegarde importée ✅");
+    ouvrirModale("Importer cette sauvegarde ?",
+      "<p>Tes données actuelles seront remplacées par celles du fichier (<b>" + lu.seances.length + " séances</b>).</p>", [
+        { texte: "✅ Oui, importer", classe: "principal", action: function () {
+          // Une sauvegarde d'une ancienne version est mise au format actuel
+          donnees = completerDonnees(migrerDonnees(lu));
+          sauver();
+          bilan = null;
+          assistant = null;
+          rendre();
+          afficherToast("Sauvegarde importée ✅");
+        } },
+        { texte: "Annuler", classe: "secondaire" },
+      ]);
   };
   lecteur.readAsText(fichier);
 }
@@ -887,6 +1160,11 @@ document.addEventListener("click", function (e) {
   if (b && !b.disabled && actions[b.dataset.action]) actions[b.dataset.action](b);
 });
 
+// Touche « Échap » : ferme la fenêtre de confirmation
+document.addEventListener("keydown", function (e) {
+  if (e.key === "Escape" && !el("modale").classList.contains("cache")) fermerModale();
+});
+
 // Saisie au clavier du nombre de répétitions d'une série
 document.addEventListener("input", function (e) {
   const t = e.target;
@@ -894,6 +1172,8 @@ document.addEventListener("input", function (e) {
     const v = parseInt(t.value, 10);
     donnees.enCours.exercices[+t.dataset.ex].series[+t.dataset.serie].valeur = isNaN(v) ? 0 : Math.max(0, v);
     sauver();
+  } else if (t.dataset.q) {
+    saisieQuestionnaire(t);
   }
 });
 
@@ -901,10 +1181,14 @@ document.addEventListener("input", function (e) {
 document.addEventListener("change", function (e) {
   const t = e.target;
   if (t.id === "reglage-objectif") {
-    const v = parseFloat(t.value);
-    if (v > 20 && v < 300) { donnees.poidsObjectif = v; sauver(); afficherToast("Objectif enregistré"); }
-  } else if (t.id === "reglage-seances") {
-    donnees.seancesParSemaine = parseInt(t.value, 10); sauver(); rendreEntete();
+    const v = nombre(t.value);
+    if (String(t.value).trim() === "") {
+      donnees.profil.poidsVise = null; sauver(); rendre(); afficherToast("Poids visé retiré");
+    } else if (v > 20 && v < 300) {
+      donnees.profil.poidsVise = arrondi1(v); sauver(); rendre(); afficherToast("Poids visé enregistré ✅");
+    } else {
+      afficherToast("Entre un poids valide en kg, par exemple 72,5");
+    }
   } else if (t.id === "reglage-son") {
     donnees.son = t.checked; sauver();
   } else if (t.id === "reglage-son-force") {
@@ -984,13 +1268,15 @@ function arreterMinuteur() {
 let echauffementActif = false;
 
 function lancerEchauffement(i) {
-  if (i >= ECHAUFFEMENT.length) { finEchauffement(true); return; }
+  // Échauffement adapté au matériel et aux douleurs (programme.js)
+  const liste = echauffementPour(donnees.profil);
+  if (i >= liste.length) { finEchauffement(true); return; }
   echauffementActif = true;
   garderEcranAllume();
-  const e = ECHAUFFEMENT[i];
+  const e = liste[i];
   const suivant = function () { lancerEchauffement(i + 1); };
-  demarrerMinuteur(e.duree, "Échauffement " + (i + 1) + "/" + ECHAUFFEMENT.length + " · " + e.nom,
-    e.conseil + (ECHAUFFEMENT[i + 1] ? "\nEnsuite : " + ECHAUFFEMENT[i + 1].nom : ""),
+  demarrerMinuteur(e.duree, "Échauffement " + (i + 1) + "/" + liste.length + " · " + e.nom,
+    e.conseil + (liste[i + 1] ? "\nEnsuite : " + liste[i + 1].nom : ""),
     suivant, suivant, { visuel: e.anim, stop: true });
 }
 
@@ -1104,7 +1390,7 @@ document.addEventListener("visibilitychange", function () {
 
 function dessinerGraphiques() {
   const cProgres = el("graph-progres");
-  if (cProgres) {
+  if (cProgres && familleGraphique) {
     const f = famille(familleGraphique);
     const points = [];
     donnees.seances.forEach(function (s) {
@@ -1116,12 +1402,15 @@ function dessinerGraphiques() {
   const cPoids = el("graph-poids");
   if (cPoids) {
     const points = donnees.poids.map(function (p) { return { date: p.date, y: p.kg }; });
-    // Le rythme idéal : on part de la 1re pesée et on monte de RYTHME_IDEAL kg par semaine
-    const ideal = points.length ? function (date) {
+    const objectif = donnees.profil.poidsVise;
+    const sens = sensPoids(donnees.poids, objectif);
+    // Le rythme conseillé : on part de la 1re pesée et on avance vers le poids visé
+    const ideal = points.length && sens !== 0 ? function (date) {
       const semaines = (new Date(date) - new Date(points[0].date)) / (7 * 86400000);
-      return Math.min(donnees.poidsObjectif, points[0].y + semaines * RYTHME_IDEAL);
+      return sens > 0 ? Math.min(objectif, points[0].y + semaines * RYTHME_IDEAL)
+        : Math.max(objectif, points[0].y - semaines * RYTHME_IDEAL_PERTE);
     } : null;
-    dessinerCourbe(cPoids, points, { objectif: donnees.poidsObjectif, parDate: true, ideal: ideal,
+    dessinerCourbe(cPoids, points, { objectif: objectif, parDate: true, ideal: ideal,
       formatY: function (v) { return Math.round(v) + " kg"; } });
   }
 }

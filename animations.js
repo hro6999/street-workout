@@ -169,6 +169,16 @@ const ANIM = (function () {
     banc: function (x, y, l) {
       return '<rect class="meuble" x="' + x + '" y="' + y + '" width="' + l + '" height="' + (SOL - y) + '" rx="2"/>';
     },
+    // table vue de côté : le plateau + 2 pieds
+    table: function (x1, x2, y) {
+      return '<rect class="meuble" x="' + x1 + '" y="' + y + '" width="' + (x2 - x1) + '" height="4" rx="1"/>' +
+        '<line class="poteau" x1="' + (x1 + 18) + '" y1="' + y + '" x2="' + (x1 + 18) + '" y2="' + SOL + '"/>' +
+        '<line class="poteau" x1="' + (x2 - 3) + '" y1="' + y + '" x2="' + (x2 - 3) + '" y2="' + SOL + '"/>';
+    },
+    // poteau vertical (pour se tenir)
+    poteau: function (x, y) {
+      return '<line class="poteau" x1="' + x + '" y1="' + y + '" x2="' + x + '" y2="' + SOL + '"/>';
+    },
     parallette: function (x, y) {
       return '<path class="poteau" d="M' + (x - 9) + " " + SOL + " L" + (x - 5) + " " + y + " L" + (x + 5) + " " + y + " L" + (x + 9) + " " + SOL + '"/>' +
         '<circle class="barre" cx="' + x + '" cy="' + y + '" r="3"/>';
@@ -390,6 +400,125 @@ const ANIM = (function () {
     { pose: { h: [80, 70], t: -88, m1: { a: 130, r: 26 }, m2: { a: 40, r: 26 }, c1: -1, c2: -1, p1: [80, S], p2: [94, 80], g: -1 }, d: 280, h: 40 },
   ] };
 
+  // ===== DOS SANS BARRE (allongé sur le ventre, la tête à droite) =====
+  const ventre = function (h, t, bras, jambes, hd) {
+    return { h: h, t: t, hd: hd || 0, m1: bras, c: 1, p1: jambes, p2: { a: jambes.a + 3, r: jambes.r }, g: 1 };
+  };
+  A["tirage-0"] = { vue: "cote", decor: [["sol"]], cle: 1, etapes: [
+    { pose: ventre([66, 106], 0, { a: 6, r: 29 }, { a: 178, r: 38 }), d: 900, h: 300 },
+    { pose: ventre([66, 105], -10, { a: -12, r: 29 }, { a: 190, r: 38 }, -6), d: 900, h: 1400 },
+  ] };
+
+  A["tirage-1"] = { vue: "cote", decor: [["sol"]], cle: 1, etapes: [
+    { pose: ventre([66, 105], -10, { a: -10, r: 29 }, { a: 190, r: 38 }, -6), d: 700, h: 200 },
+    { pose: ventre([66, 105], -10, { a: 160, r: 18 }, { a: 190, r: 38 }, -6), d: 900, h: 400 },
+  ] };
+
+  A["tirage-2"] = { vue: "cote", decor: [["sol"], ["bande", 104, 106]], cle: 1, etapes: [
+    { pose: { h: [62, 106], t: -100, m1: [100, 96], c: 1, p1: [102, S], g: 1 }, d: 1200, h: 300 },
+    { pose: { h: [62, 106], t: -96, m1: [70, 90], c: -1, p1: [102, S], g: 1 }, d: 900, h: 400 },
+  ] };
+
+  A["tirage-3"] = { vue: "cote", decor: [["sol"], ["table", 96, 158, 58]], cle: 1, etapes: [
+    { pose: { h: [62, 100], t: -16, hd: 20, m1: [99, 62], c: 1, p1: [42, S], g: 1 }, d: 1200, h: 300 },
+    { pose: { h: [64, 90], t: -36, hd: 20, m1: [99, 62], c: 1, p1: [42, S], g: 1 }, d: 1000, h: 400 },
+  ] };
+
+  A["tirage-4"] = { vue: "cote", decor: [["sol"], ["table", 96, 158, 58]], cle: 1, etapes: [
+    { pose: Object.assign(gaine([28, S], -22), { m1: [99, 62], c: 1, hd: 20 }), d: 1200, h: 300 },
+    { pose: Object.assign(gaine([28, S], -37), { m1: [99, 62], c: 1, hd: 20 }), d: 1000, h: 400 },
+  ] };
+
+  // ===== JAMBES =====
+  A["jambes-0"] = { vue: "cote", decor: [["sol"], ["banc", 36, 90, 28]], cle: 0, etapes: [
+    { pose: { h: [58, 88], t: -66, m1: { a: 0, r: 29 }, p1: [84, S], g: -1 }, d: 1200, h: 300 },
+    { pose: { h: [80, 71], t: -90, m1: { a: 15, r: 29 }, p1: [84, S], g: -1 }, d: 1000, h: 300 },
+  ] };
+
+  A["jambes-1"] = A["echauffement-squats"];
+
+  A["jambes-2"] = { vue: "cote", decor: [["sol"]], cle: 1, etapes: [
+    { pose: { h: [76, 73], t: -90, m1: { a: 95, r: 29 }, p1: [92, S], p2: [60, S], g1: -1, g2: -1 }, d: 1000, h: 200 },
+    { pose: { h: [76, 92], t: -90, m1: { a: 95, r: 29 }, p1: [100, S], p2: [52, S - 1], g1: -1, g2: -1 }, d: 1100, h: 300 },
+  ] };
+
+  A["jambes-3"] = { vue: "cote", decor: [["sol"], ["banc", 18, 90, 26]], cle: 1, etapes: [
+    { pose: { h: [76, 74], t: -90, m1: { a: 95, r: 29 }, p1: [92, S], p2: [38, 88], g1: -1, g2: -1 }, d: 1000, h: 200 },
+    { pose: { h: [70, 93], t: -82, m1: { a: 95, r: 29 }, p1: [92, S], p2: [38, 88], g1: -1, g2: -1 }, d: 1100, h: 300 },
+  ] };
+
+  A["jambes-4"] = { vue: "cote", decor: [["sol"], ["poteau", 116, 40]], cle: 1, etapes: [
+    { pose: { h: [80, 71], t: -90, m1: [116, 64], c: 1, p1: [82, S], p2: { a: 70, r: 37 }, g: -1 }, d: 1000, h: 200 },
+    { pose: { h: [66, 97], t: -62, m1: [116, 74], c: 1, p1: [82, S], p2: { a: 0, r: 38 }, g: -1 }, d: 1500, h: 300 },
+  ] };
+
+  A["jambes-5"] = { vue: "cote", decor: [["sol"]], cle: 1, etapes: [
+    { pose: { h: [80, 71], t: -90, m1: { a: 0, r: 29 }, p1: [82, S], p2: { a: 70, r: 37 }, g: -1 }, d: 1000, h: 200 },
+    { pose: { h: [66, 97], t: -62, m1: { a: -5, r: 29 }, p1: [82, S], p2: { a: 0, r: 38 }, g: -1 }, d: 1500, h: 300 },
+  ] };
+
+  // ===== FESSIERS (sur le dos, la tête à droite) =====
+  A["fessiers-0"] = { vue: "cote", decor: [["sol"]], cle: 1, etapes: [
+    { pose: { h: [70, 106], t: 0, hd: 0, m1: [84, S], c: 1, p1: [46, S], g: 1 }, d: 1000, h: 300 },
+    { pose: { h: [70, 90], t: 27, hd: -20, m1: [84, S], c: 1, p1: [46, S], g: 1 }, d: 900, h: 900 },
+  ] };
+
+  A["fessiers-1"] = { vue: "cote", decor: [["sol"], ["banc", 22, 90, 24]], cle: 1, etapes: [
+    { pose: { h: [72, 106], t: 0, hd: 0, m1: [86, S], c: 1, p1: [40, 88], g: 1 }, d: 1000, h: 300 },
+    { pose: { h: [70, 86], t: 33, hd: -25, m1: [86, S], c: 1, p1: [40, 88], g: 1 }, d: 900, h: 900 },
+  ] };
+
+  A["fessiers-2"] = { vue: "cote", decor: [["sol"]], cle: 1, etapes: [
+    { pose: { h: [70, 106], t: 0, hd: 0, m1: [84, S], c: 1, p1: [46, S], p2: { a: 230, r: 38 }, g: 1 }, d: 1000, h: 300 },
+    { pose: { h: [70, 90], t: 27, hd: -20, m1: [84, S], c: 1, p1: [46, S], p2: { a: 207, r: 38 }, g: 1 }, d: 900, h: 900 },
+  ] };
+
+  // ===== DIPS =====
+  // Sur une chaise : dos à la chaise (à gauche), mains sur le bord
+  A["dips-0"] = { vue: "cote", decor: [["sol"], ["banc", 44, 88, 28]], cle: 0, etapes: [
+    { pose: { h: [82, 89], t: -98, m1: [70, 88], c: 1, p1: [104, S], g: -1 }, d: 1000, h: 200 },
+    { pose: { h: [84, 103], t: -96, m1: [70, 88], c: 1, p1: [104, S], g: -1 }, d: 1200, h: 200 },
+  ] };
+
+  A["dips-1"] = { vue: "cote", decor: [["sol"], ["banc", 44, 88, 28]], cle: 0, etapes: [
+    { pose: { h: [83, 88], t: -100, m1: [70, 88], c: 1, p1: [116, S], g: -1 }, d: 1000, h: 200 },
+    { pose: { h: [86, 102], t: -96, m1: [70, 88], c: 1, p1: [116, S], g: -1 }, d: 1200, h: 200 },
+  ] };
+
+  // Barres parallèles (vues de côté : une barre)
+  const appui = function (h, t, c) {
+    return { h: h, t: t, m1: [80, 62], c: c, p1: { a: 115, r: 30 }, p2: { a: 110, r: 30 }, g: 1 };
+  };
+  const PARA = [["barreCote", 80, 62]];
+  A["dips-2"] = { vue: "cote", decor: PARA, cle: 0, etapes: [
+    { pose: appui([81, 63], -90, 1), d: 900, h: 900 },
+    { pose: appui([81, 61], -90, 1), d: 700, h: 1400 },
+  ] };
+
+  A["dips-3"] = { vue: "cote", decor: PARA, cle: 1, etapes: [
+    { pose: appui([81, 63], -90, -1), d: 500, h: 500 },
+    { pose: appui([86, 80], -78, -1), d: 3500, h: 300 },
+  ] };
+
+  A["dips-4"] = { vue: "cote", decor: PARA, cle: 1, etapes: [
+    { pose: appui([81, 63], -90, -1), d: 1100, h: 300 },
+    { pose: appui([86, 80], -78, -1), d: 1300, h: 200 },
+  ] };
+
+  // ===== CARDIO =====
+  A["cardio-0"] = A["echauffement-genoux"];
+  A["cardio-1"] = A["echauffement-jumping"];
+
+  const grimpeur = function (genou) {
+    const p = gaine([42, S], -25);
+    return Object.assign(p, { m1: [106, S], hd: 25,
+      p1: genou === 1 ? [74, 100] : [42, S], p2: genou === 2 ? [74, 100] : [44, S], g: -1 });
+  };
+  A["cardio-2"] = { vue: "cote", decor: [["sol"]], cle: 0, etapes: [
+    { pose: grimpeur(1), d: 300, h: 60 },
+    { pose: grimpeur(2), d: 300, h: 60 },
+  ] };
+
   // ---------- Fabrication du dessin SVG ----------
   function points(m) { return m.map(function (p) { return p[0].toFixed(1) + "," + p[1].toFixed(1); }).join(" "); }
 
@@ -399,6 +528,9 @@ const ANIM = (function () {
       if (d[0] === "elastique") {
         const k1 = sq.j1[1], k2 = sq.j2[1];
         html += '<polyline class="elastique" points="77,14 ' + points([k1, k2]) + ' 83,14"/>';
+      } else if (d[0] === "bande") {
+        // élastique tendu entre un point fixe (les pieds) et la main
+        html += '<polyline class="elastique" points="' + d[1] + "," + d[2] + " " + points([sq.m1[2]]) + '"/>';
       } else if (d[0] === "sac") {
         const dos = [-sq.perp[0], -sq.perp[1]];
         const haut = plus(sq.epaule, [sq.hanche[0] - sq.epaule[0], sq.hanche[1] - sq.epaule[1]], 0.12);

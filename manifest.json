@@ -1,7 +1,7 @@
 {
   "name": "Street Workout",
   "short_name": "Workout",
-  "description": "Mes séances de street workout et ma progression",
+  "description": "Séances de street workout adaptées à chacun, au poids du corps, avec ou sans matériel",
   "lang": "fr",
   "start_url": "./",
   "scope": "./",

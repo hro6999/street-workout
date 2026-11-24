@@ -6,7 +6,7 @@ aucun droit d'auteur tiers à respecter.
 
 | Média | Fichier | Source | Licence |
 |---|---|---|---|
-| Personnages animés des 27 niveaux d'exercices (tractions, pompes, abdos, gainage) | `animations.js` | Créés pour l'appli (dessin vectoriel SVG généré par le code) | Libre, appartient au propriétaire de l'appli |
+| Personnages animés des 49 niveaux d'exercices (tractions, pompes, abdos, gainage, dos sans barre, jambes, fessiers, dips, cardio) | `animations.js` | Créés pour l'appli (dessin vectoriel SVG généré par le code) | Libre, appartient au propriétaire de l'appli |
 | Personnages animés des 5 exercices d'échauffement (jumping jacks, cercles de bras, poignets, squats, montées de genoux) | `animations.js` | Créés pour l'appli | Libre, appartient au propriétaire de l'appli |
 | Icônes de la barre d'onglets (Séance, Progrès, Poids, Réglages) | `index.html` | Créées pour l'appli (SVG) | Libre, appartient au propriétaire de l'appli |
 | Icônes de l'appli (écran d'accueil) | `icones/` | Créées pour l'appli | Libre, appartient au propriétaire de l'appli |
