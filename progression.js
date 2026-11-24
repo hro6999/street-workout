@@ -80,3 +80,76 @@ function seancesCetteSemaine(seances, maintenant) {
   const lundi = debutSemaine(maintenant || new Date()).getTime();
   return seances.filter(function (s) { return new Date(s.date).getTime() >= lundi; }).length;
 }
+
+
+// =====================================================================
+//  RECORDS PERSONNELS
+// =====================================================================
+
+// Meilleure série jamais faite à un niveau (null si jamais fait)
+function meilleureSerie(seances, familleId, niveau) {
+  let meilleur = null;
+  seances.forEach(function (s) {
+    s.exercices.forEach(function (e) {
+      if (e.famille !== familleId || e.niveau !== niveau) return;
+      e.faites.forEach(function (n) { if (meilleur === null || n > meilleur) meilleur = n; });
+    });
+  });
+  return meilleur;
+}
+
+// Plus haut niveau où au moins une série a été faite (-1 si aucun)
+function niveauMaxAtteint(seances, familleId) {
+  let max = -1;
+  seances.forEach(function (s) {
+    s.exercices.forEach(function (e) {
+      if (e.famille === familleId && e.faites.length && e.niveau > max) max = e.niveau;
+    });
+  });
+  return max;
+}
+
+
+// =====================================================================
+//  PRISE DE POIDS : la tendance des dernières semaines
+// =====================================================================
+
+const RYTHME_IDEAL = 0.35; // kg par semaine (entre 0,25 et 0,5 kg c'est bien)
+
+// Renvoie { type, parSemaine, dateObjectif }
+//   type : "attente" (pas assez de pesées), "atteint", "stagne", "bon", "rapide", "baisse"
+function tendancePoids(pesees, objectif, maintenant) {
+  maintenant = maintenant || new Date();
+  const JOUR = 86400000;
+  if (!pesees.length) return { type: "attente" };
+  const dernier = pesees[pesees.length - 1];
+  if (dernier.kg >= objectif) return { type: "atteint" };
+
+  // On regarde les 4 dernières semaines (ou tout, s'il y a moins de données)
+  let liste = pesees.filter(function (p) { return new Date(dernier.date) - new Date(p.date) <= 28 * JOUR; });
+  if (liste.length < 2) liste = pesees.slice(-2);
+  const etendue = (new Date(liste[liste.length - 1].date) - new Date(liste[0].date)) / JOUR;
+  if (liste.length < 2 || etendue < 10) return { type: "attente" };
+
+  // Droite qui passe au mieux par les points (régression linéaire)
+  const t0 = new Date(liste[0].date).getTime();
+  const xs = liste.map(function (p) { return (new Date(p.date).getTime() - t0) / JOUR; });
+  const ys = liste.map(function (p) { return p.kg; });
+  const mx = xs.reduce(function (a, b) { return a + b; }) / xs.length;
+  const my = ys.reduce(function (a, b) { return a + b; }) / ys.length;
+  let num = 0, den = 0;
+  xs.forEach(function (x, i) { num += (x - mx) * (ys[i] - my); den += (x - mx) * (x - mx); });
+  const parSemaine = Math.round(num / den * 7 * 100) / 100;
+
+  let type = "bon";
+  if (parSemaine < -0.05) type = "baisse";
+  else if (parSemaine < 0.1) type = "stagne";
+  else if (parSemaine > 0.6) type = "rapide";
+
+  let dateObjectif = null;
+  if (parSemaine >= 0.1) {
+    const semaines = (objectif - dernier.kg) / parSemaine;
+    dateObjectif = new Date(new Date(dernier.date).getTime() + semaines * 7 * JOUR);
+  }
+  return { type: type, parSemaine: parSemaine, dateObjectif: dateObjectif };
+}

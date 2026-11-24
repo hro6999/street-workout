@@ -32,14 +32,16 @@
 
   <!-- Barre d'onglets en bas de l'écran -->
   <nav class="onglets">
-    <button data-action="onglet" data-vue="seance"><span>🏋️</span>Séance</button>
-    <button data-action="onglet" data-vue="progres"><span>📈</span>Progrès</button>
-    <button data-action="onglet" data-vue="poids"><span>⚖️</span>Poids</button>
-    <button data-action="onglet" data-vue="reglages"><span>⚙️</span>Réglages</button>
+    <button data-action="onglet" data-vue="seance"><svg class="icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6M6 7v10M18 7v10M21 9v6M6 12h12"/></svg>Séance</button>
+    <button data-action="onglet" data-vue="progres"><svg class="icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20h18M5 16l5-5 4 3 6-7"/><path d="M15 7h5v5"/></svg>Progrès</button>
+    <button data-action="onglet" data-vue="poids"><svg class="icone" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="4"/><path d="M8 10a4 4 0 0 1 8 0M12 10l1.5-2"/></svg>Poids</button>
+    <button data-action="onglet" data-vue="reglages"><svg class="icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>Réglages</button>
   </nav>
 
   <!-- Minuteur plein écran (caché tant qu'il ne tourne pas) -->
   <div id="minuteur" class="minuteur cache">
+    <button id="minuteur-stop" class="minuteur-stop cache" data-action="minuteur-stop">✕ Arrêter</button>
+    <div id="minuteur-visuel" class="minuteur-visuel"></div>
     <div id="minuteur-titre" class="minuteur-titre">Repos</div>
     <div id="minuteur-temps" class="minuteur-temps">1:30</div>
     <div id="minuteur-sous" class="minuteur-sous"></div>
@@ -55,6 +57,7 @@
 
   <!-- Le code de l'appli (l'ordre compte !) -->
   <script src="exercices.js"></script>
+  <script src="animations.js"></script>
   <script src="progression.js"></script>
   <script src="app.js"></script>
 </body>

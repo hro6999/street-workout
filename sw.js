@@ -10,13 +10,14 @@
 //  et change le numéro de version de CACHE (v1 → v2).
 // =====================================================================
 
-const CACHE = "street-workout-v2";
+const CACHE = "street-workout-v3";
 
 const FICHIERS = [
   "./",
   "./index.html",
   "./style.css",
   "./exercices.js",
+  "./animations.js",
   "./progression.js",
   "./app.js",
   "./manifest.json",
@@ -28,7 +29,10 @@ const FICHIERS = [
 
 // Installation : on met tous les fichiers en cache
 self.addEventListener("install", function (event) {
-  event.waitUntil(caches.open(CACHE).then(function (cache) { return cache.addAll(FICHIERS); }));
+  // cache: "reload" = on télécharge la vraie dernière version (pas une vieille copie du navigateur)
+  event.waitUntil(caches.open(CACHE).then(function (cache) {
+    return cache.addAll(FICHIERS.map(function (f) { return new Request(f, { cache: "reload" }); }));
+  }));
   self.skipWaiting();
 });
 

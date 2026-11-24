@@ -15,6 +15,7 @@
   <div id="resultats"></div>
 
   <script src="exercices.js"></script>
+  <script src="animations.js"></script>
   <script src="progression.js"></script>
   <script>
     // Petit outil de test : affiche ✅ ou ❌ pour chaque vérification
@@ -77,7 +78,54 @@
     ];
     verifier("Compteur semaine : 2 séances depuis lundi", seancesCetteSemaine(seances, mercredi) === 2);
 
-    // 11. Simulation : si tout est réussi, combien de semaines par niveau ?
+    // 11. Chaque niveau a son animation et ses conseils
+    let manque = [];
+    FAMILLES.forEach(function (f) {
+      f.niveaux.forEach(function (n, i) {
+        if (!ANIM.existe(f.id + "-" + i)) manque.push("animation " + f.id + "-" + i);
+        if (!n.points || n.points.length < 2) manque.push("points " + n.nom);
+        if (!n.erreurs || n.erreurs.length < 1) manque.push("erreurs " + n.nom);
+      });
+    });
+    ECHAUFFEMENT.forEach(function (e) { if (!ANIM.existe(e.anim)) manque.push("échauffement " + e.anim); });
+    verifier("Animations et conseils présents partout" + (manque.length ? " — manque : " + manque.join(", ") : ""), manque.length === 0);
+
+    // 12. Les dessins ne contiennent pas de valeurs cassées (NaN)
+    const casses = ANIM.cles().filter(function (c) {
+      for (let t = 0; t < ANIM.duree(c); t += 150) if (ANIM.instant(c, t).indexOf("NaN") >= 0) return true;
+      return false;
+    });
+    verifier("Aucune animation cassée" + (casses.length ? " : " + casses.join(", ") : ""), casses.length === 0);
+
+    // 13. Échauffement d'environ 5 minutes
+    const totalEchauffement = ECHAUFFEMENT.reduce(function (t, e) { return t + e.duree; }, 0);
+    verifier("Échauffement entre 4 et 6 minutes (" + totalEchauffement + " s)", totalEchauffement >= 240 && totalEchauffement <= 360);
+
+    // 14. Records
+    const histo = [
+      { exercices: [{ famille: "pompes", niveau: 2, faites: [8, 10, 9] }] },
+      { exercices: [{ famille: "pompes", niveau: 2, faites: [11, 9, 9] }, { famille: "pompes", niveau: 3, faites: [] }] },
+    ];
+    verifier("Record pompes niveau 3 : 11", meilleureSerie(histo, "pompes", 2) === 11);
+    verifier("Pas de record à un niveau jamais fait", meilleureSerie(histo, "pompes", 4) === null);
+    verifier("Plus haut niveau avec des séries faites : 2 (pas 3, vide)", niveauMaxAtteint(histo, "pompes") === 2);
+
+    // 15. Tendance du poids
+    const jour = function (n) { return new Date(2026, 10, 1 + n, 8).toISOString(); };
+    let tp = tendancePoids([{ date: jour(0), kg: 60 }], 70, new Date(2026, 10, 2));
+    verifier("1 seule pesée : on attend", tp.type === "attente");
+    tp = tendancePoids([{ date: jour(0), kg: 60 }, { date: jour(7), kg: 60.3 }, { date: jour(14), kg: 60.7 }], 70);
+    verifier("+0,35 kg/semaine : bon rythme (" + tp.parSemaine + ")", tp.type === "bon" && Math.abs(tp.parSemaine - 0.35) < 0.05);
+    tp = tendancePoids([{ date: jour(0), kg: 61 }, { date: jour(7), kg: 61 }, { date: jour(14), kg: 61.1 }], 70);
+    verifier("Poids qui ne bouge pas : stagne", tp.type === "stagne");
+    tp = tendancePoids([{ date: jour(0), kg: 60 }, { date: jour(14), kg: 62 }], 70);
+    verifier("+1 kg/semaine : trop rapide", tp.type === "rapide");
+    tp = tendancePoids([{ date: jour(0), kg: 62 }, { date: jour(14), kg: 61.5 }], 70);
+    verifier("Poids qui baisse : baisse", tp.type === "baisse");
+    tp = tendancePoids([{ date: jour(0), kg: 69.5 }, { date: jour(14), kg: 70.1 }], 70);
+    verifier("Objectif dépassé : atteint", tp.type === "atteint");
+
+    // 16. Simulation : si tout est réussi, combien de semaines par niveau ?
     let simu = "";
     FAMILLES.forEach(function (f) {
       let etat = etatInitial(f, 0), nb = 0, lignes = [];
@@ -92,7 +140,7 @@
         }
         if (etat.niveau === f.niveaux.length - 1 && etat.objectif === f.niveaux[etat.niveau].max) break;
       }
-      simu += f.emoji + " " + f.nom + "\n  " + lignes.join("\n  ") + "\n";
+      simu += f.nom + "\n  " + lignes.join("\n  ") + "\n";
     });
     const pre = document.createElement("pre");
     pre.textContent = "Simulation « tout réussi » (rythme maximum théorique, à 3 séances/semaine) :\n" + simu;

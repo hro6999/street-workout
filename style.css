@@ -108,7 +108,7 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1p
   padding: 12px 0; border-bottom: 1px solid var(--ligne);
 }
 .liste-plan li:last-child { border-bottom: none; }
-.liste-plan .emoji { font-size: 1.6rem; }
+.liste-plan li > div { flex: 1; min-width: 0; }
 .liste-plan .cible { margin-left: auto; font-weight: 700; color: var(--accent); white-space: nowrap; }
 
 .avancement { height: 8px; border-radius: 4px; background: var(--ligne); overflow: hidden; margin: 8px 0 4px; }
@@ -116,8 +116,6 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1p
 .avancement.vert > div { background: var(--vert); }
 
 .exo.termine { outline: 2px solid var(--vert); }
-.exo-entete { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
-.exo-entete .emoji { font-size: 2rem; }
 .exo-famille { color: var(--texte-doux); font-size: 0.85rem; }
 .objectif { font-size: 1rem; margin-bottom: 8px; }
 .objectif b { color: var(--accent); font-size: 1.15rem; }
@@ -132,13 +130,14 @@ details p { color: var(--texte-doux); }
   background: var(--carte-2); border-radius: 12px;
 }
 .serie.faite { background: rgba(52, 199, 89, 0.15); }
-.serie-num { flex: 1; font-weight: 600; font-size: 0.95rem; min-width: 0; }
+.serie-num { flex: 1; min-width: 0; font-weight: 800; font-size: 1.3rem; text-align: center; line-height: 1; }
+.serie-num small { display: block; font-size: 0.7rem; font-weight: 600; color: var(--texte-doux); }
 .serie input {
-  width: 64px; min-height: 48px; margin: 0; padding: 4px;
-  text-align: center; font-size: 1.3rem; font-weight: 700;
+  width: 62px; min-height: 54px; margin: 0; padding: 4px;
+  text-align: center; font-size: 1.4rem; font-weight: 700;
 }
 .btn-rond, .btn-valider {
-  width: 48px; height: 48px; flex: none;
+  width: 54px; height: 54px; flex: none;
   border-radius: 50%; border: none;
   font-size: 1.5rem; font-weight: 700;
   background: var(--ligne); color: var(--texte);
@@ -147,11 +146,69 @@ details p { color: var(--texte-doux); }
 .serie.faite .btn-valider { background: var(--vert); color: #04210d; }
 button:disabled { opacity: 0.35; }
 
-.bilan li { margin: 6px 0; }
+.bilan li { margin: 10px 0; display: flex; gap: 12px; align-items: flex-start; }
 .bilan ul { padding-left: 0; list-style: none; }
+.record { margin-top: 4px; color: var(--accent); font-weight: 700; }
+
+/* ---------- Personnages animés (animations.js) ---------- */
+.fig { display: block; }
+.fig .sol { stroke: var(--ligne); stroke-width: 2; }
+.fig .poteau { stroke: var(--ligne); stroke-width: 3; fill: none; stroke-linejoin: round; }
+.fig .barre, .fig .barre-face { fill: var(--texte-doux); stroke: var(--texte-doux); stroke-width: 4; stroke-linecap: round; }
+.fig .meuble { fill: var(--ligne); }
+.fig .membre, .fig .buste { fill: none; stroke: var(--texte); stroke-linecap: round; stroke-linejoin: round; stroke-width: 5.5; }
+.fig .buste { stroke-width: 7; }
+.fig .loin { stroke: var(--texte-doux); opacity: 0.6; }
+.fig .tete { fill: var(--texte); }
+.fig .elastique { fill: none; stroke: var(--accent); stroke-width: 2.2; stroke-linejoin: round; }
+.fig .sac { fill: var(--accent-fonce); }
+
+/* Petite image carrée dans les listes */
+.vignette {
+  width: 52px; height: 52px; flex: none;
+  background: var(--carte-2); border-radius: 12px;
+}
+.vignette .membre, .vignette .buste { stroke: var(--accent); }
+.vignette .tete { fill: var(--accent); }
+.vignette.mini { display: inline-block; width: 22px; height: 22px; border-radius: 6px; vertical-align: -6px; }
+
+/* Grande animation de l'exercice */
+.anim.grande {
+  background: var(--carte-2); border-radius: 14px; margin-bottom: 12px;
+  aspect-ratio: 4 / 3; overflow: hidden;
+}
+.anim.grande .fig { width: 100%; height: 100%; }
+
+/* Les 4 exercices de la séance, en haut (on touche pour changer) */
+.etapes-seance { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 16px; }
+.etapes-seance button {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  min-height: 84px; padding: 8px 4px;
+  background: var(--carte); border: 2px solid transparent; border-radius: 14px;
+  font-weight: 700; font-size: 0.9rem;
+}
+.etapes-seance button.actif { border-color: var(--accent); }
+.etapes-seance button.termine span { color: var(--vert); }
+.etapes-seance .vignette { width: 48px; height: 48px; }
+
+.points { list-style: none; padding: 0; margin: 8px 0; }
+.points li { padding: 3px 0 3px 26px; position: relative; }
+.points li::before { content: "✓"; position: absolute; left: 4px; color: var(--vert); font-weight: 800; }
+.erreurs { list-style: none; padding: 0; margin: 8px 0; color: var(--texte-doux); }
+.erreurs li { padding: 3px 0 3px 26px; position: relative; }
+.erreurs li::before { content: "✗"; position: absolute; left: 4px; color: var(--rouge); font-weight: 800; }
+
+.nav-exo { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+.nav-exo .btn + .btn { margin-top: 0; }
+
+/* Légende du graphique de poids */
+.legende { display: inline-block; width: 18px; height: 0; border-top: 3px dashed; vertical-align: middle; }
+.legende.vert { border-color: var(--vert); }
+.legende.gris { border-color: var(--texte-doux); border-top-width: 2px; }
 
 /* ---------- Progrès ---------- */
-.niveau-ligne { padding: 12px 0; border-bottom: 1px solid var(--ligne); }
+.niveau-ligne { display: flex; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--ligne); }
+.niveau-texte { flex: 1; min-width: 0; }
 .niveau-ligne:last-child { border-bottom: none; }
 .niveau-titre { display: flex; justify-content: space-between; gap: 8px; font-weight: 700; }
 .choix-famille { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
@@ -193,7 +250,7 @@ canvas.graphique { display: block; width: 100%; height: 220px; }
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
   color: var(--texte-doux); font-size: 0.8rem;
 }
-.onglets button span { font-size: 1.4rem; }
+.onglets .icone { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .onglets button.actif { color: var(--accent); font-weight: 700; }
 
 /* ---------- Minuteur plein écran ---------- */
@@ -206,7 +263,16 @@ canvas.graphique { display: block; width: 100%; height: 220px; }
 }
 .minuteur-titre { font-size: 1.5rem; font-weight: 700; color: var(--accent); }
 .minuteur-temps { font-size: min(32vw, 160px); font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; }
-.minuteur-sous { color: var(--texte-doux); min-height: 1.4em; }
+.minuteur-sous { color: var(--texte-doux); min-height: 1.4em; white-space: pre-line; max-width: 420px; }
+.minuteur-visuel:empty { display: none; }
+.minuteur-visuel { width: 100%; max-width: 340px; }
+.minuteur-visuel .anim { margin: 0; }
+.minuteur-stop {
+  position: absolute; top: calc(12px + env(safe-area-inset-top)); right: 12px;
+  min-height: 44px; padding: 8px 14px; border-radius: 22px;
+  border: 1px solid var(--ligne); background: var(--carte-2); font-weight: 600;
+}
+@media (max-height: 700px) { .minuteur { gap: 10px; } .minuteur-visuel { max-width: 260px; } .minuteur-temps { font-size: min(26vw, 110px); } }
 .minuteur-boutons { display: flex; gap: 12px; width: 100%; max-width: 400px; }
 .minuteur-boutons .btn { margin: 0; }
 .minuteur > .btn { max-width: 400px; }
