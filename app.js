@@ -590,7 +590,7 @@ function vuePoids() {
   html += `<label class="lbl" for="poidsIn">${deja ? "Corriger la pesée d'aujourd'hui" : "Pesée du jour"}</label>
     <div class="wrow"><input id="poidsIn" class="input" type="text" inputmode="decimal" placeholder="ex : 61,2" autocomplete="off">
     <button class="cta small" onclick="clicPoids()">Enregistrer</button></div>
-    <p class="hint">Une pesée par jour (une nouvelle pesée remplace celle du jour). Entre 30 et 250 kg.</p></div>`;
+    <p class="hint">Une pesée par jour : une nouvelle pesée remplace celle du jour (+20 XP une seule fois par jour). Entre 30 et 250 kg.</p></div>`;
 
   html += `<div class="card"><div class="h2">🎯 Objectif</div>
     <div class="wrow"><input id="objIn" class="input" type="text" inputmode="decimal" value="${g(d.objectif)}" autocomplete="off">

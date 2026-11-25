@@ -455,16 +455,20 @@ function lirePoids(texte) {
 // Une seule pesée par jour : une nouvelle pesée le même jour remplace l'ancienne
 function enregistrerPoids(d, valeur) {
   const jour = aujourdhui(), obj = d.objectif;
+  // Déjà pesé aujourd'hui ? Le poids est corrigé, mais pas d'XP en plus (XP une seule fois par jour)
+  const deja = d.poids.some(p => p[0] === jour);
   d.poids = d.poids.filter(p => p[0] !== jour).concat([[jour, valeur]]);
-  const recompense = recompenser(d, XP_PESEE);
+  const recompense = recompenser(d, deja ? 0 : XP_PESEE);
   const gain = gainPoids(d), debut = d.poids[0][1];
   const reste = arrondi1(Math.abs(obj - valeur));
   const atteint = objectifAtteint(d);
   const progression = obj !== debut ? barre(Math.abs(valeur - debut), Math.abs(obj - debut)) : barre(1, 1);
   const texte = `⚖️ ${g(valeur)} kg enregistré !\nDepuis le début : ${signe(gain)} kg\n`
     + (atteint ? "🎯 OBJECTIF ATTEINT !\n" : `Encore ${g(reste)} kg avant tes ${g(obj)} kg 🎯\n`)
-    + `${progression}\n\n${recompense.texte}`;
-  return { texte, recompense };
+    + `${progression}`
+    + (deja ? "\n(Pesée du jour corrigée : pas d'XP en plus 😉)" : "")
+    + (recompense.texte ? `\n\n${recompense.texte}` : "");
+  return { texte, recompense, deja };
 }
 
 // Objectif atteint ? (dans le bon sens : prise ou perte de poids)
