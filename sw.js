@@ -2,25 +2,22 @@
 //  sw.js — LE SERVICE WORKER (pour que l'appli marche sans internet)
 // ---------------------------------------------------------------------
 //  Au premier chargement, il copie tous les fichiers de l'appli dans le
-//  téléphone. Ensuite, il sert ces copies immédiatement (même hors-ligne)
-//  et, s'il y a du réseau, il récupère les nouvelles versions en
-//  arrière-plan : tes modifications apparaissent à l'ouverture suivante.
+//  téléphone. Ensuite, s'il y a du réseau, il prend toujours la dernière
+//  version en ligne (et met la copie à jour) ; sans réseau, il sert la
+//  copie du téléphone : l'appli marche donc aussi hors connexion.
 //
 //  Si tu ajoutes un fichier à l'appli, ajoute-le dans la liste FICHIERS
 //  et change le numéro de version de CACHE (v1 → v2).
 // =====================================================================
 
-const CACHE = "street-workout-v4";
+const CACHE = "coach-street-v5";
 
 const FICHIERS = [
   "./",
   "./index.html",
   "./style.css",
-  "./exercices.js",
-  "./animations.js",
-  "./progression.js",
-  "./programme.js",
-  "./questionnaire.js",
+  "./coach.js",
+  "./figures.js",
   "./app.js",
   "./manifest.json",
   "./icones/icone-180.png",
@@ -47,19 +44,21 @@ self.addEventListener("activate", function (event) {
   );
 });
 
-// Chaque demande de fichier : réponse depuis le cache, mise à jour en arrière-plan
+// Chaque demande de fichier : d'abord internet (dernière version), sinon la copie du téléphone
 self.addEventListener("fetch", function (event) {
   const req = event.request;
   if (req.method !== "GET" || new URL(req.url).origin !== self.location.origin) return;
 
   event.respondWith(
-    caches.open(CACHE).then(function (cache) {
-      return cache.match(req, { ignoreSearch: true }).then(function (enCache) {
-        const reseau = fetch(req).then(function (reponse) {
-          if (reponse.ok) cache.put(req, reponse.clone());
-          return reponse;
-        }).catch(function () { return enCache; });
-        return enCache || reseau;
+    fetch(req, { cache: "no-cache" }).then(function (reponse) {
+      if (reponse.ok) {
+        const copie = reponse.clone();
+        caches.open(CACHE).then(function (cache) { cache.put(req, copie); });
+      }
+      return reponse;
+    }).catch(function () {
+      return caches.match(req, { ignoreSearch: true }).then(function (enCache) {
+        return enCache || caches.match("./index.html");
       });
     })
   );
